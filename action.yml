@@ -1,0 +1,13 @@
+name: 'Merge PR to Branch'
+description: "Handles merging PRs with 'deploy' label to a target branch."
+author: 'Deliveroo'
+inputs:
+  target-branch:
+    description: 'The target branch to merge PRs to'
+    default: staging
+  repo-token:
+    description: 'The access token used to access github api'
+    default: ${{ github.token }}      
+runs:
+  using: 'node12'
+  main: 'dist/index.js'

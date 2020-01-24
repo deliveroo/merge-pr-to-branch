@@ -1,0 +1,33 @@
+{
+  "name": "merge-pr-to-branch",
+  "version": "0.0.0",
+  "description": "Merges Pull Requests that are labeled with 'deploy'.",
+  "scripts": {
+    "build": "tsc -p tsconfig.prod.json && npx -p @zeit/ncc ncc build dist/main.js --minify",
+    "format": "prettier --write **/*.ts",
+    "test": "jest __tests__/**",
+    "test:integration": "jest __integrationtests__/**"
+  },
+  "author": "Deliveroo",
+  "dependencies": {
+    "@actions/core": "^1.0.0",
+    "@actions/exec": "^1.0.0",
+    "@actions/github": "^2.0.0",
+    "@actions/io": "^1.0.0",
+    "@actions/tool-cache": "^1.0.0",
+    "@octokit/rest": "^16.37.0",
+    "@octokit/webhooks": "^7.0.0",
+    "lodash": "^4.17.15",
+    "serialize-error": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^24.0.13",
+    "@types/lodash": "^4.14.149",
+    "@types/node": "^12.0.4",
+    "jest": "^24.8.0",
+    "jest-circus": "^24.7.1",
+    "prettier": "^1.17.1",
+    "ts-jest": "^24.0.2",
+    "typescript": "^3.5.1"
+  }
+}
