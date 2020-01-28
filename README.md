@@ -1,6 +1,6 @@
 # About
 
-`merge-pr-to-branch` is a Github action that will reset the `target-branch` (defaults to `staging`) to the base branch (eg. `master`) and merge every pull request with the `deploy` label. This is triggered as defined in the Github workflow.
+`merge-pr-to-branch` is a Github action that will manage your deployment branches via pull requests. This removes the need to manually reset/merge/push your deployment branch for testing.
 
 See [Gap Analysis](gap-analysis.md).
 
