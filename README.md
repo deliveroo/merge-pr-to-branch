@@ -16,7 +16,7 @@ on:
     pull_request:
       branches:
         - master
-      types: [labeled, unlabeled, closed, reopened]
+      types: [labeled, unlabeled, closed, reopened, synchronize]
     push:
       branches:
         - master
