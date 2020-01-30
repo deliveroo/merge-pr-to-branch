@@ -137,8 +137,16 @@ const getMergablePullRequests = async (
     `Found ${pullRequestList.length} ${listOptions.state} pull requests against '${listOptions.base}'.`
   );
   const prsToRemove: { reason: string; pull_number: number }[] = [];
+  const prsToAdd: number[] = [];
   const labeledPullRequests = pullRequestList.filter(p => {
-    const include = hasLabel(p.labels, requestDeploymentLabel);
+    const hasDeployLabel = hasLabel(p.labels, requestDeploymentLabel);
+    const include = hasDeployLabel || hasLabel(p.labels, "staged");
+    if (include && !hasDeployLabel) {
+      core.info(
+        `Adding missing ${requestDeploymentLabel} label when 'staged' exists to PR #${p.number}.`
+      );
+      prsToAdd.push(p.number);
+    }
     if (!include && hasLabel(p.labels, deployedLabel)) {
       const reason = `Removing pull request from ${targetBranch} due to missing '${requestDeploymentLabel}' label.`;
       core.info(reason);
@@ -177,21 +185,31 @@ const getMergablePullRequests = async (
     }
     return mergeable;
   });
-  await Promise.all(
-    prsToRemove.map(
-      async p =>
-        await githubClient.issues
-          .removeLabel({
-            owner,
-            repo,
-            issue_number: p.pull_number,
-            name: deployedLabel
-          })
-          .then(async () => {
-            await createPullRequestComment(githubClient, owner, repo, p.pull_number, p.reason);
-          })
-    )
-  );
+  // await Promise.all(
+  //   prsToAdd.map(issue_number =>
+  //     githubClient.issues.addLabels({
+  //       owner,
+  //       repo,
+  //       issue_number,
+  //       labels: [requestDeploymentLabel]
+  //     })
+  //   )
+  // );
+  // await Promise.all(
+  //   prsToRemove.map(
+  //     async p =>
+  //       await githubClient.issues
+  //         .removeLabel({
+  //           owner,
+  //           repo,
+  //           issue_number: p.pull_number,
+  //           name: deployedLabel
+  //         })
+  //         .then(async () => {
+  //           // await createPullRequestComment(githubClient, owner, repo, p.pull_number, p.reason);
+  //         })
+  //   )
+  // );
   return mergeablePullRequests;
 };
 
@@ -245,42 +263,44 @@ export const mergeDeployablePullRequests = async (
   }
   await resetBranchtoBase(githubClient, owner, repo, targetBranch, baseBranch);
   await Promise.all(
-    mergeablePullRequests.map(async p =>
-      mergeCommit(githubClient, owner, repo, targetBranch, p.data.head.sha).then(
+    mergeablePullRequests.map(async p => {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      return mergeCommit(githubClient, owner, repo, targetBranch, p.data.head.sha).then(
         async message => {
+          core.info(`Successfully merged PR #${p.data.number} to '${targetBranch}'.`);
           if (!hasLabel(p.data.labels, deployedLabel)) {
-            await createPullRequestComment(githubClient, owner, repo, p.data.number, message);
-            await githubClient.issues.addLabels({
-              owner,
-              repo,
-              issue_number: p.data.number,
-              labels: [deployedLabel]
-            });
+            // await createPullRequestComment(githubClient, owner, repo, p.data.number, message);
+            // await githubClient.issues.addLabels({
+            //   owner,
+            //   repo,
+            //   issue_number: p.data.number,
+            //   labels: [deployedLabel]
+            // });
           }
         },
         async error => {
-          const errorMessage = `Skipping PR due to merge error: \n${JSON.stringify(
+          const errorMessage = `Skipping PR #${p.data.number} due to error: \n${JSON.stringify(
             serializeError(error)
           )}`;
           core.warning(errorMessage);
-          await githubClient.issues.removeLabel({
-            owner,
-            repo,
-            issue_number: p.data.number,
-            name: requestDeploymentLabel
-          });
-          await createPullRequestComment(githubClient, owner, repo, p.data.number, errorMessage);
-          if (hasLabel(p.data.labels, deployedLabel)) {
-            await githubClient.issues.removeLabel({
-              owner,
-              repo,
-              issue_number: p.data.number,
-              name: deployedLabel
-            });
-          }
+          // await githubClient.issues.removeLabel({
+          //   owner,
+          //   repo,
+          //   issue_number: p.data.number,
+          //   name: requestDeploymentLabel
+          // });
+          //await createPullRequestComment(githubClient, owner, repo, p.data.number, errorMessage);
+          // if (hasLabel(p.data.labels, deployedLabel)) {
+          //   await githubClient.issues.removeLabel({
+          //     owner,
+          //     repo,
+          //     issue_number: p.data.number,
+          //     name: deployedLabel
+          //   });
+          // }
         }
-      )
-    )
+      );
+    })
   );
 };
 

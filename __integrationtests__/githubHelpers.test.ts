@@ -3,6 +3,6 @@ import { createGithubClient, mergeDeployablePullRequests } from "../src/githubHe
 describe("main", () => {
   it("mergeDeployablePullRequests intergration test", async () => {
     const client = createGithubClient();
-    await mergeDeployablePullRequests(client, "deliveroo", "dev-glue", "sandbox", "master");
+    await mergeDeployablePullRequests(client, "deliveroo", "orderweb", "staging-test", "master");
   }, 100000);
 });
