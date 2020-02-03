@@ -6,7 +6,7 @@ import { serializeError } from "serialize-error";
 import _ from "lodash";
 
 const requestDeploymentLabel = "deploy";
-const deployedLabel = "deployed"; // TODO: include target branch in label
+const deployedLabel = "deployed";
 const githubActionName = "merge-pr-to-branch";
 
 export const isPullRequestEvent = (
