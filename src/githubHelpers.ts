@@ -1,4 +1,5 @@
 import * as core from "@actions/core";
+import * as exec from "@actions/exec";
 import * as github from "@actions/github";
 import { WebhookPayloadPullRequest, WebhookPayloadPush } from "@octokit/webhooks";
 import Github from "@octokit/rest";
@@ -28,18 +29,11 @@ const formatHeadFromBranch = (branch: string) => `heads/${branch}`;
 const formatRefFromBranch = (branch: string) => `refs/${formatHeadFromBranch(branch)}`;
 
 export const createGithubClient = () => {
-  const { GITHUB_PAT, GITHUB_USER } = process.env;
-  const auth =
-    GITHUB_PAT && GITHUB_USER
-      ? {
-          username: GITHUB_USER,
-          password: GITHUB_PAT,
-          on2fa: () => Promise.reject("2fa is unsupported")
-        }
-      : core.getInput("repo-token");
+  const auth = getAuth();
   if (!auth) {
     throw new Error("Auth not configured for Github.");
   }
+
   return new Github({
     auth
   });
@@ -199,7 +193,6 @@ const resetBranchtoBase = async (
   githubClient: Github,
   owner: string,
   repo: string,
-  targetBranch: string,
   baseBranch: string
 ) => {
   const baseBranchRef = await getBranchRef(githubClient, owner, repo, baseBranch);
@@ -209,20 +202,7 @@ const resetBranchtoBase = async (
   const {
     object: { sha }
   } = baseBranchRef.data;
-  const updateRefResult = await githubClient.git.updateRef({
-    owner,
-    repo,
-    force: true,
-    ref: formatHeadFromBranch(targetBranch),
-    sha
-  });
-
-  if (updateRefResult.status >= 200 && updateRefResult.status < 300) {
-    core.info(`Successfully reset '${targetBranch}' to '${baseBranch}' (${sha}).`);
-    return;
-  }
-
-  throw new Error(`Failed to reset '${targetBranch}' to '${baseBranch}' (${sha}).`);
+  return execCmd(`git reset --hard ${sha}`);
 };
 
 export const mergeDeployablePullRequests = async (
@@ -243,76 +223,76 @@ export const mergeDeployablePullRequests = async (
   if (targetRef.status === 404) {
     await createBranch(githubClient, owner, repo, targetBranch, baseBranch);
   }
-  await resetBranchtoBase(githubClient, owner, repo, targetBranch, baseBranch);
+  // Relies on the standard @actions/checkout action to be run first
+  await execCmd("git status");
+  await resetBranchtoBase(githubClient, owner, repo, baseBranch);
+  const mergeResults = await mergePullRequests(mergeablePullRequests, targetBranch);
+  await execCmd(`git push -f`);
   await Promise.all(
-    mergeablePullRequests.map(async p =>
-      mergeCommit(githubClient, owner, repo, targetBranch, p.data.head.sha).then(
-        async message => {
-          if (!hasLabel(p.data.labels, deployedLabel)) {
-            await createPullRequestComment(githubClient, owner, repo, p.data.number, message);
-            await githubClient.issues.addLabels({
-              owner,
-              repo,
-              issue_number: p.data.number,
-              labels: [deployedLabel]
-            });
-          }
-        },
-        async error => {
-          const errorMessage = `Skipping PR due to merge error: \n${JSON.stringify(
-            serializeError(error)
-          )}`;
-          core.warning(errorMessage);
-          await githubClient.issues.removeLabel({
+    mergeResults.map(async ({ pullRequest, ...rest }) => {
+      if ("errorMessage" in rest) {
+        const { errorMessage } = rest;
+        await githubClient.issues.removeLabel({
+          owner,
+          repo,
+          issue_number: pullRequest.data.number,
+          name: requestDeploymentLabel
+        });
+        await createPullRequestComment(
+          githubClient,
+          owner,
+          repo,
+          pullRequest.data.number,
+          errorMessage
+        );
+      }
+      if (hasLabel(pullRequest.data.labels, deployedLabel)) {
+        await githubClient.issues.removeLabel({
+          owner,
+          repo,
+          issue_number: pullRequest.data.number,
+          name: deployedLabel
+        });
+      } else if ("message" in rest) {
+        if (!hasLabel(pullRequest.data.labels, deployedLabel)) {
+          const { message } = rest;
+          await createPullRequestComment(
+            githubClient,
             owner,
             repo,
-            issue_number: p.data.number,
-            name: requestDeploymentLabel
+            pullRequest.data.number,
+            message
+          );
+          await githubClient.issues.addLabels({
+            owner,
+            repo,
+            issue_number: pullRequest.data.number,
+            labels: [deployedLabel]
           });
-          await createPullRequestComment(githubClient, owner, repo, p.data.number, errorMessage);
-          if (hasLabel(p.data.labels, deployedLabel)) {
-            await githubClient.issues.removeLabel({
-              owner,
-              repo,
-              issue_number: p.data.number,
-              name: deployedLabel
-            });
-          }
         }
-      )
-    )
+      }
+    })
   );
 };
 
-export const mergeCommit = async (
-  githubClient: Github,
-  owner: string,
-  repo: string,
-  targetBranch: string,
-  prSha: string
-) => {
-  const mergeResult = await githubClient.repos.merge({
-    owner,
-    repo,
-    base: targetBranch,
-    head: prSha,
-    commit_message: `Merged by ${githubActionName}`
-  });
-
-  const { data, status } = mergeResult;
-  if (status >= 300) {
-    throw new Error(`Merge '${prSha}' to '${targetBranch}' failed: \n${JSON.stringify(data)}`);
+const githubWorkspaceEnvVarName = "GITHUB_WORKSPACE";
+export const execCmd = async (...commands: string[]) => {
+  const cwd = process.env[githubWorkspaceEnvVarName];
+  if (!cwd) {
+    throw new Error(`Missing environment variable: '${githubWorkspaceEnvVarName}'.`);
   }
+  return await exec.exec(commands.join("/n"), undefined, { cwd });
+};
 
-  if (status === 201) {
-    return `Successfully merged '${prSha}' to '${targetBranch}'.`;
-  }
-
-  if (status === 204) {
-    return `'${prSha}' already exists in '${targetBranch}'.`;
-  }
-
-  throw new Error(`Unexpected status: '${status}'.`);
+export const mergeCommit = async (targetBranch: string, prSha: string) => {
+  return await execCmd(`git merge ${prSha} --commit -m "Merged by ${githubActionName}"`).then(
+    () => `Successfully merged '${prSha}' to '${targetBranch}'.`,
+    error => {
+      throw new Error(
+        `Merge '${prSha}' to '${targetBranch}' failed: \n${JSON.stringify(serializeError(error))}`
+      );
+    }
+  );
 };
 
 export const getBaseBranch = (
@@ -327,3 +307,37 @@ export const getBaseBranch = (
     return getBranchFromRef(payload.ref);
   }
 };
+function getAuth() {
+  const { GITHUB_PAT, GITHUB_USER } = process.env;
+  const auth =
+    GITHUB_PAT && GITHUB_USER
+      ? {
+          username: GITHUB_USER,
+          password: GITHUB_PAT,
+          on2fa: () => Promise.reject("2fa is unsupported")
+        }
+      : core.getInput("repo-token");
+  return auth;
+}
+
+async function mergePullRequests(
+  pullRequests: Github.Response<Github.PullsGetResponse>[],
+  targetBranch: string
+) {
+  return await Promise.all(
+    pullRequests.map(async pullRequest =>
+      mergeCommit(targetBranch, pullRequest.data.head.sha).then(
+        async message => {
+          return { pullRequest, message };
+        },
+        async error => {
+          const errorMessage = `Skipped PR due to merge error: \n${JSON.stringify(
+            serializeError(error)
+          )}`;
+          core.warning(errorMessage);
+          return { pullRequest, errorMessage };
+        }
+      )
+    )
+  );
+}
