@@ -1,7 +1,8 @@
 import * as core from "@actions/core";
 import * as github from "@actions/github";
 import { serializeError } from "serialize-error";
-import { createGithubClient, mergeDeployablePullRequests, getBaseBranch } from "./githubHelpers";
+import { getBaseBranch } from "./githubHelpers";
+import { mergeDeployablePullRequests } from "./mergeDeployablePullRequests";
 
 const targetBranchInputName = "target-branch";
 async function run() {
@@ -19,7 +20,6 @@ async function run() {
       throw new Error("Missing repository from payload.");
     }
 
-    const githubClient = createGithubClient();
     const owner = repository.owner.login;
     const repo = repository.name;
     const baseBranch = getBaseBranch(context, payload);
@@ -31,7 +31,7 @@ async function run() {
 
     core.info(`Using baseBranch: '${baseBranch}'.`);
 
-    await mergeDeployablePullRequests(githubClient, owner, repo, targetBranch, baseBranch);
+    await mergeDeployablePullRequests(owner, repo, targetBranch, baseBranch);
   } catch (error) {
     core.setFailed(JSON.stringify(serializeError(error)));
   }
