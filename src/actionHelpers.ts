@@ -16,13 +16,16 @@ export const execCmd = async (...commands: string[]) => {
 export const createCommitMessage = (message: string) => `${message} by ${githubActionName}`;
 export const createCommentMessage = (message: string) => `${githubActionName}:\n${message}`;
 
+type githubContext = typeof github.context;
+type githubPayload = githubContext["payload"];
+
 export const isPullRequestEvent = (
-  context: typeof github.context,
-  payload: typeof github.context.payload
+  context: githubContext,
+  payload: githubPayload
 ): payload is WebhookPayloadPullRequest =>
   context.eventName === "pull_request" && !!payload.pull_request;
 
 export const isPushEvent = (
-  context: typeof github.context,
-  payload: typeof github.context.payload
+  context: githubContext,
+  payload: githubPayload
 ): payload is WebhookPayloadPush => context.eventName === "push" && !!payload.repository;

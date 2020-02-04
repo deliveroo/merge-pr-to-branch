@@ -1,7 +1,7 @@
 import * as core from "@actions/core";
 import * as github from "@actions/github";
 import { serializeError } from "serialize-error";
-import { getBaseBranch } from "./githubHelpers";
+import { getBaseBranch, createGithubClient } from "./githubHelpers";
 import { mergeDeployablePullRequests } from "./mergeDeployablePullRequests";
 
 const targetBranchInputName = "target-branch";
@@ -31,7 +31,9 @@ async function run() {
 
     core.info(`Using baseBranch: '${baseBranch}'.`);
 
-    await mergeDeployablePullRequests(owner, repo, targetBranch, baseBranch);
+    const auth = core.getInput("repo-token");
+    const githubClient = createGithubClient(auth);
+    await mergeDeployablePullRequests(githubClient, owner, repo, targetBranch, baseBranch);
   } catch (error) {
     core.setFailed(JSON.stringify(serializeError(error)));
   }

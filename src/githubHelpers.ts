@@ -1,4 +1,3 @@
-import * as core from "@actions/core";
 import * as github from "@actions/github";
 import Github from "@octokit/rest";
 import _ from "lodash";
@@ -12,8 +11,7 @@ export const getBranchFromRef = (ref: string) => _.last(_.split(ref, "/"));
 const formatHeadFromBranch = (branch: string) => `heads/${branch}`;
 const formatRefFromBranch = (branch: string) => `refs/${formatHeadFromBranch(branch)}`;
 
-export const createGithubClient = () => {
-  const auth = getAuth();
+export const createGithubClient = (auth: Github.Options["auth"]) => {
   if (!auth) {
     throw new Error("Auth not configured for Github.");
   }
@@ -120,16 +118,3 @@ export const getBaseBranch = (
     return getBranchFromRef(payload.ref);
   }
 };
-
-function getAuth() {
-  const { GITHUB_PAT, GITHUB_USER } = process.env;
-  const auth =
-    GITHUB_PAT && GITHUB_USER
-      ? {
-          username: GITHUB_USER,
-          password: GITHUB_PAT,
-          on2fa: () => Promise.reject("2fa is unsupported")
-        }
-      : core.getInput("repo-token");
-  return auth;
-}

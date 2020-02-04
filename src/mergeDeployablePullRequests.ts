@@ -8,20 +8,19 @@ import {
   resetBranchtoBase,
   createPullRequestComment,
   hasLabel,
-  getAllPaginatedItems,
-  createGithubClient
+  getAllPaginatedItems
 } from "./githubHelpers";
 
 const requestDeploymentLabel = "deploy";
 const deployedLabel = "deployed";
 
 export const mergeDeployablePullRequests = async (
+  githubClient: Github,
   owner: string,
   repo: string,
   targetBranch: string,
   baseBranch: string
 ) => {
-  const githubClient = createGithubClient();
   const mergeablePullRequests = await getMergablePullRequests(
     githubClient,
     owner,
