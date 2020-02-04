@@ -5,11 +5,13 @@ import { serializeError } from "serialize-error";
 import {
   getBranchRef,
   createBranch,
-  resetBranchtoBase,
+  getBranchCommit,
   hasLabel,
-  getAllPaginatedItems
+  getAllPaginatedItems,
+  getBranchFromRef
 } from "./githubHelpers";
-import { createCommentMessage } from "./actionHelpers";
+import { createCommentMessage, isPullRequestEvent, isPushEvent } from "./actionHelpers";
+import * as github from "@actions/github";
 
 const requestDeploymentLabel = "deploy";
 const deployedLabel = "deployed";
@@ -34,7 +36,11 @@ export const mergeDeployablePullRequests = async (
   }
   // Relies on the standard @actions/checkout action to be run first
   await git.status();
-  await resetBranchtoBase(githubClient, owner, repo, baseBranch);
+  const baseBranchCommit = await getBranchCommit(githubClient, owner, repo, baseBranch);
+  if (!baseBranchCommit) {
+    throw new Error(`baseBranch: '${baseBranch}' not found.`);
+  }
+  await git.resetHard(baseBranchCommit);
   const mergeResults = await mergePullRequests(mergeablePullRequests, targetBranch);
   await git.forcePush();
   await handleMergeResults(mergeResults, githubClient, owner, repo);
@@ -210,3 +216,16 @@ const createPullRequestComment = async (
     issue_number: pull_number,
     body: createCommentMessage(comment)
   });
+
+export const getBaseBranch = (
+  context: typeof github.context,
+  payload: typeof github.context.payload
+) => {
+  if (isPullRequestEvent(context, payload)) {
+    return getBranchFromRef(payload.pull_request.base.ref);
+  }
+
+  if (isPushEvent(context, payload)) {
+    return getBranchFromRef(payload.ref);
+  }
+};

@@ -1,6 +1,5 @@
 import Github from "@octokit/rest";
 import _ from "lodash";
-import * as git from "./gitCommandHelpers";
 
 export const hasLabel = (labels: (string | { name: string })[], label: string) =>
   labels.some(l => (l instanceof Object ? l.name === label : l === label));
@@ -74,18 +73,18 @@ export const getAllPaginatedItems = async <T>(githubClient: Github, options: {})
   return _.flatMap(pages);
 };
 
-export const resetBranchtoBase = async (
+export const getBranchCommit = async (
   githubClient: Github,
   owner: string,
   repo: string,
-  baseBranch: string
+  branch: string
 ) => {
-  const baseBranchRef = await getBranchRef(githubClient, owner, repo, baseBranch);
-  if (!("data" in baseBranchRef)) {
-    throw new Error(`baseBranch: '${baseBranch}' not found.`);
+  const branchRef = await getBranchRef(githubClient, owner, repo, branch);
+  if (!("data" in branchRef)) {
+    return undefined;
   }
   const {
     object: { sha }
-  } = baseBranchRef.data;
-  return git.resetHard(sha);
+  } = branchRef.data;
+  return sha;
 };
