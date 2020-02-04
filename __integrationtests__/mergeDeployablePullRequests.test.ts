@@ -1,4 +1,4 @@
-import { createGithubClient } from "../src/githubHelpers";
+import { createGithubClient } from "../src/githubApiHelpers";
 import * as git from "../src/gitCommandHelpers";
 import { mergeDeployablePullRequests } from "../src/mergeDeployablePullRequests";
 

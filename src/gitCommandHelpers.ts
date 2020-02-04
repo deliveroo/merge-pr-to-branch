@@ -1,4 +1,4 @@
-import { execCmd, createCommitMessage } from "./actionHelpers";
+import { execCmd, createCommitMessage } from "./githubActionHelpers";
 import { serializeError } from "serialize-error";
 
 export const mergeCommit = async (targetBranch: string, prSha: string) => {

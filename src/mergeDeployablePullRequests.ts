@@ -1,4 +1,4 @@
-import * as core from "@actions/core";
+import { info, warning } from "@actions/core";
 import Github from "@octokit/rest";
 import * as git from "./gitCommandHelpers";
 import { serializeError } from "serialize-error";
@@ -9,9 +9,14 @@ import {
   hasLabel,
   getAllPaginatedItems,
   getBranchFromRef
-} from "./githubHelpers";
-import { createCommentMessage, isPullRequestEvent, isPushEvent } from "./actionHelpers";
-import * as github from "@actions/github";
+} from "./githubApiHelpers";
+import {
+  createCommentMessage,
+  isPullRequestEvent,
+  isPushEvent,
+  githubPayload,
+  githubContext
+} from "./githubActionHelpers";
 
 const requestDeploymentLabel = "deploy";
 const deployedLabel = "deployed";
@@ -119,7 +124,7 @@ const getMergablePullRequests = async (
     githubClient,
     githubClient.pulls.list.endpoint.merge(listOptions)
   );
-  core.info(
+  info(
     `Found ${pullRequestList.length} ${listOptions.state} pull requests against '${listOptions.base}'.`
   );
   const prsToRemove: { reason: string; pull_number: number }[] = [];
@@ -127,7 +132,7 @@ const getMergablePullRequests = async (
     const include = hasLabel(p.labels, requestDeploymentLabel);
     if (!include && hasLabel(p.labels, deployedLabel)) {
       const reason = `Removing pull request from ${targetBranch} due to missing '${requestDeploymentLabel}' label.`;
-      core.info(reason);
+      info(reason);
       prsToRemove.push({
         reason,
         pull_number: p.number
@@ -135,7 +140,7 @@ const getMergablePullRequests = async (
     }
     return include;
   });
-  core.info(
+  info(
     `Found ${labeledPullRequests.length} pull requests labeled with '${requestDeploymentLabel}'.`
   );
   const mergeablePullRequests = (
@@ -150,11 +155,11 @@ const getMergablePullRequests = async (
     )
   ).filter(({ data: { labels, number, mergeable } }) => {
     if (mergeable) {
-      core.info(`found mergeable pull request #${number}.`);
+      info(`found mergeable pull request #${number}.`);
     } else {
-      core.info(`skipping unmergeable pull request #${number}.`);
+      info(`skipping unmergeable pull request #${number}.`);
       if (hasLabel(labels, deployedLabel)) {
-        core.info(`Adding pull request #${number} to be removed due to umergeable.`);
+        info(`Adding pull request #${number} to be removed due to umergeable.`);
         prsToRemove.push({
           reason: `Removing pull request from ${targetBranch} due to unmergeable PR.`,
           pull_number: number
@@ -195,7 +200,7 @@ async function mergePullRequests(
           const errorMessage = `Skipped PR due to merge error: \n${JSON.stringify(
             serializeError(error)
           )}`;
-          core.warning(errorMessage);
+          warning(errorMessage);
           return { pullRequest, errorMessage };
         }
       )
@@ -217,10 +222,7 @@ const createPullRequestComment = async (
     body: createCommentMessage(comment)
   });
 
-export const getBaseBranch = (
-  context: typeof github.context,
-  payload: typeof github.context.payload
-) => {
+export const getBaseBranch = (context: githubContext, payload: githubPayload) => {
   if (isPullRequestEvent(context, payload)) {
     return getBranchFromRef(payload.pull_request.base.ref);
   }

@@ -1,5 +1,5 @@
-import * as exec from "@actions/exec";
-import * as github from "@actions/github";
+import { exec } from "@actions/exec";
+import github from "@actions/github";
 import { WebhookPayloadPullRequest, WebhookPayloadPush } from "@octokit/webhooks";
 
 const githubActionName = "merge-pr-to-branch";
@@ -10,14 +10,14 @@ export const execCmd = async (...commands: string[]) => {
   if (!cwd) {
     throw new Error(`Missing environment variable: '${githubWorkspaceEnvVarName}'.`);
   }
-  return await exec.exec(commands.join("/n"), undefined, { cwd });
+  return await exec(commands.join("/n"), undefined, { cwd });
 };
 
 export const createCommitMessage = (message: string) => `${message} by ${githubActionName}`;
 export const createCommentMessage = (message: string) => `${githubActionName}:\n${message}`;
 
-type githubContext = typeof github.context;
-type githubPayload = githubContext["payload"];
+export type githubContext = typeof github.context;
+export type githubPayload = githubContext["payload"];
 
 export const isPullRequestEvent = (
   context: githubContext,
