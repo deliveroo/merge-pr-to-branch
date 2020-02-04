@@ -1,14 +1,14 @@
 import * as core from "@actions/core";
-import * as exec from "@actions/exec";
 import * as github from "@actions/github";
 import { WebhookPayloadPullRequest, WebhookPayloadPush } from "@octokit/webhooks";
 import Github from "@octokit/rest";
 import { serializeError } from "serialize-error";
 import _ from "lodash";
+import { createCommentMessage } from "./actionHelpers";
+import * as git from "./gitCommandHelpers";
 
 const requestDeploymentLabel = "deploy";
 const deployedLabel = "deployed";
-const githubActionName = "merge-pr-to-branch";
 
 export const isPullRequestEvent = (
   context: typeof github.context,
@@ -99,13 +99,13 @@ const createPullRequestComment = async (
   owner: string,
   repo: string,
   pull_number: number,
-  body: string
+  comment: string
 ) =>
   githubClient.issues.createComment({
     owner,
     repo,
     issue_number: pull_number,
-    body: `${githubActionName}:\n${body}`
+    body: createCommentMessage(comment)
   });
 
 const getMergablePullRequests = async (
@@ -202,7 +202,7 @@ const resetBranchtoBase = async (
   const {
     object: { sha }
   } = baseBranchRef.data;
-  return execCmd(`git reset --hard ${sha}`);
+  return git.resetHard(sha);
 };
 
 export const mergeDeployablePullRequests = async (
@@ -224,10 +224,10 @@ export const mergeDeployablePullRequests = async (
     await createBranch(githubClient, owner, repo, targetBranch, baseBranch);
   }
   // Relies on the standard @actions/checkout action to be run first
-  await execCmd("git status");
+  await git.status();
   await resetBranchtoBase(githubClient, owner, repo, baseBranch);
   const mergeResults = await mergePullRequests(mergeablePullRequests, targetBranch);
-  await execCmd(`git push -f`);
+  await git.forcePush();
   await Promise.all(
     mergeResults.map(async ({ pullRequest, ...rest }) => {
       if ("errorMessage" in rest) {
@@ -275,26 +275,6 @@ export const mergeDeployablePullRequests = async (
   );
 };
 
-const githubWorkspaceEnvVarName = "GITHUB_WORKSPACE";
-export const execCmd = async (...commands: string[]) => {
-  const cwd = process.env[githubWorkspaceEnvVarName];
-  if (!cwd) {
-    throw new Error(`Missing environment variable: '${githubWorkspaceEnvVarName}'.`);
-  }
-  return await exec.exec(commands.join("/n"), undefined, { cwd });
-};
-
-export const mergeCommit = async (targetBranch: string, prSha: string) => {
-  return await execCmd(`git merge ${prSha} --commit -m "Merged by ${githubActionName}"`).then(
-    () => `Successfully merged '${prSha}' to '${targetBranch}'.`,
-    error => {
-      throw new Error(
-        `Merge '${prSha}' to '${targetBranch}' failed: \n${JSON.stringify(serializeError(error))}`
-      );
-    }
-  );
-};
-
 export const getBaseBranch = (
   context: typeof github.context,
   payload: typeof github.context.payload
@@ -307,6 +287,7 @@ export const getBaseBranch = (
     return getBranchFromRef(payload.ref);
   }
 };
+
 function getAuth() {
   const { GITHUB_PAT, GITHUB_USER } = process.env;
   const auth =
@@ -326,7 +307,7 @@ async function mergePullRequests(
 ) {
   return await Promise.all(
     pullRequests.map(async pullRequest =>
-      mergeCommit(targetBranch, pullRequest.data.head.sha).then(
+      git.mergeCommit(targetBranch, pullRequest.data.head.sha).then(
         async message => {
           return { pullRequest, message };
         },
