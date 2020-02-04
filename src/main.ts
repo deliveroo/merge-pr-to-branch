@@ -1,8 +1,9 @@
 import * as core from "@actions/core";
 import * as github from "@actions/github";
 import { serializeError } from "serialize-error";
-import { getBaseBranch, createGithubClient } from "./githubHelpers";
+import { createGithubClient, getBranchFromRef } from "./githubHelpers";
 import { mergeDeployablePullRequests } from "./mergeDeployablePullRequests";
+import { isPullRequestEvent, isPushEvent } from "./actionHelpers";
 
 const targetBranchInputName = "target-branch";
 async function run() {
@@ -38,5 +39,15 @@ async function run() {
     core.setFailed(JSON.stringify(serializeError(error)));
   }
 }
+
+const getBaseBranch = (context: typeof github.context, payload: typeof github.context.payload) => {
+  if (isPullRequestEvent(context, payload)) {
+    return getBranchFromRef(payload.pull_request.base.ref);
+  }
+
+  if (isPushEvent(context, payload)) {
+    return getBranchFromRef(payload.ref);
+  }
+};
 
 run();

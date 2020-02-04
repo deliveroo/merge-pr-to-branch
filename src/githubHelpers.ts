@@ -105,16 +105,3 @@ export const resetBranchtoBase = async (
   } = baseBranchRef.data;
   return git.resetHard(sha);
 };
-
-export const getBaseBranch = (
-  context: typeof github.context,
-  payload: typeof github.context.payload
-) => {
-  if (isPullRequestEvent(context, payload)) {
-    return getBranchFromRef(payload.pull_request.base.ref);
-  }
-
-  if (isPushEvent(context, payload)) {
-    return getBranchFromRef(payload.ref);
-  }
-};
