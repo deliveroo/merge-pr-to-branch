@@ -16,3 +16,5 @@ export const mergeCommit = async (targetBranch: string, prSha: string) => {
 export const resetHard = (sha: string) => execCmd(`git reset --hard ${sha}`);
 export const status = () => execCmd("git status");
 export const forcePush = () => execCmd(`git push -f`);
+export const fetch = () => execCmd(`git fetch`);
+export const checkout = (branch: string) => execCmd(`git checkout ${branch}`);
