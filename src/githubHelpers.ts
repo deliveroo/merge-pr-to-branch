@@ -1,7 +1,5 @@
-import * as github from "@actions/github";
 import Github from "@octokit/rest";
 import _ from "lodash";
-import { createCommentMessage, isPullRequestEvent, isPushEvent } from "./actionHelpers";
 import * as git from "./gitCommandHelpers";
 
 export const hasLabel = (labels: (string | { name: string })[], label: string) =>
@@ -75,20 +73,6 @@ export const getAllPaginatedItems = async <T>(githubClient: Github, options: {})
 
   return _.flatMap(pages);
 };
-
-export const createPullRequestComment = async (
-  githubClient: Github,
-  owner: string,
-  repo: string,
-  pull_number: number,
-  comment: string
-) =>
-  githubClient.issues.createComment({
-    owner,
-    repo,
-    issue_number: pull_number,
-    body: createCommentMessage(comment)
-  });
 
 export const resetBranchtoBase = async (
   githubClient: Github,

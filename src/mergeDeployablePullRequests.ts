@@ -6,10 +6,10 @@ import {
   getBranchRef,
   createBranch,
   resetBranchtoBase,
-  createPullRequestComment,
   hasLabel,
   getAllPaginatedItems
 } from "./githubHelpers";
+import { createCommentMessage } from "./actionHelpers";
 
 const requestDeploymentLabel = "deploy";
 const deployedLabel = "deployed";
@@ -196,3 +196,17 @@ async function mergePullRequests(
     )
   );
 }
+
+const createPullRequestComment = async (
+  githubClient: Github,
+  owner: string,
+  repo: string,
+  pull_number: number,
+  comment: string
+) =>
+  githubClient.issues.createComment({
+    owner,
+    repo,
+    issue_number: pull_number,
+    body: createCommentMessage(comment)
+  });
