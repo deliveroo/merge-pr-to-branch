@@ -1,25 +1,13 @@
 import * as core from "@actions/core";
 import * as github from "@actions/github";
-import { WebhookPayloadPullRequest, WebhookPayloadPush } from "@octokit/webhooks";
 import Github from "@octokit/rest";
 import { serializeError } from "serialize-error";
 import _ from "lodash";
-import { createCommentMessage } from "./actionHelpers";
+import { createCommentMessage, isPullRequestEvent, isPushEvent } from "./actionHelpers";
 import * as git from "./gitCommandHelpers";
 
 const requestDeploymentLabel = "deploy";
 const deployedLabel = "deployed";
-
-export const isPullRequestEvent = (
-  context: typeof github.context,
-  payload: typeof github.context.payload
-): payload is WebhookPayloadPullRequest =>
-  context.eventName === "pull_request" && !!payload.pull_request;
-
-export const isPushEvent = (
-  context: typeof github.context,
-  payload: typeof github.context.payload
-): payload is WebhookPayloadPush => context.eventName === "push" && !!payload.repository;
 
 export const hasLabel = (labels: (string | { name: string })[], label: string) =>
   labels.some(l => (l instanceof Object ? l.name === label : l === label));
@@ -228,6 +216,18 @@ export const mergeDeployablePullRequests = async (
   await resetBranchtoBase(githubClient, owner, repo, baseBranch);
   const mergeResults = await mergePullRequests(mergeablePullRequests, targetBranch);
   await git.forcePush();
+  await handleMergeResults(mergeResults, githubClient, owner, repo);
+};
+
+const handleMergeResults = async (
+  mergeResults: (
+    | { pullRequest: Github.Response<Github.PullsGetResponse>; message: string }
+    | { pullRequest: Github.Response<Github.PullsGetResponse>; errorMessage: string }
+  )[],
+  githubClient: Github,
+  owner: string,
+  repo: string
+) =>
   await Promise.all(
     mergeResults.map(async ({ pullRequest, ...rest }) => {
       if ("errorMessage" in rest) {
@@ -273,7 +273,6 @@ export const mergeDeployablePullRequests = async (
       }
     })
   );
-};
 
 export const getBaseBranch = (
   context: typeof github.context,
