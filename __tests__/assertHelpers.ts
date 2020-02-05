@@ -97,9 +97,12 @@ export function createAssertions(
     mockGetBranchCommit: jest.Mock<any, any>;
     mockCreateBranch: jest.Mock<any, any>;
   },
-  baseBranch: string
+  baseBranch: string,
+  baseBranchCommit: string
 ) {
   return {
+    noLabelsAdded: () => assertNoLabelsAdded(githubClient),
+    noLabelsRemoved: () => assertNoLabelsRemoved(githubClient),
     labelAdded: (issue_number: number, label: string) =>
       assertLabelAdded(githubClient, owner, repo, issue_number, label),
     labelRemoved: (issue_number: number, label: string) =>
@@ -107,7 +110,7 @@ export function createAssertions(
     gitStatus: () => assertGitStatus(gitCommandsMocks.mockStatus),
     commitsMerged: (...commits: string[]) =>
       assertCommitsMerged(gitCommandsMocks.mockMergeCommit, targetBranch, commits),
-    hardReset: (commit: string) => assertHardReset(gitCommandsMocks.mockResetHard, commit),
+    hardResetToBase: () => assertHardReset(gitCommandsMocks.mockResetHard, baseBranchCommit),
     forcePushed: () => assertForcePushed(gitCommandsMocks.mockForcePush),
     targetBranchCreated: () =>
       assertBranchCreated(
@@ -127,6 +130,7 @@ export function createAssertions(
         repo,
         baseBranch
       ),
+    noCommentsAdded: () => assertNoCommentsAdded(githubClient),
     commentsAdded: (issue_number: number, comments: any[]) =>
       assertCommentsAdded(githubClient, owner, repo, issue_number, comments)
   };
@@ -167,7 +171,15 @@ function assertLabelAdded(
     })
   );
 }
-
+function assertNoCommentsAdded(githubClient: ReturnType<typeof createMockGithubClient>) {
+  expect(githubClient.issues.createComment).toHaveBeenCalledTimes(0);
+}
+function assertNoLabelsAdded(githubClient: ReturnType<typeof createMockGithubClient>) {
+  expect(githubClient.issues.addLabels).toHaveBeenCalledTimes(0);
+}
+function assertNoLabelsRemoved(githubClient: ReturnType<typeof createMockGithubClient>) {
+  expect(githubClient.issues.removeLabel).toHaveBeenCalledTimes(0);
+}
 function assertGetBranch(
   githubApiMocks: {
     mockGetAllPaginatedItems: jest.Mock<any, any>;

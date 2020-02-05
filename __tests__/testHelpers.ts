@@ -13,12 +13,7 @@ export const createMockGithubClient = () => ({
     list: {}
   }
 });
-export const createPullRequest = (
-  number: number,
-  mergeable: boolean,
-  labels: string[],
-  headCommit: string
-) =>
+export const createPullRequest = (number: number, mergeable: boolean, labels: string[]) =>
   (({
     number,
     labels: labels.map(name => ({
@@ -26,7 +21,7 @@ export const createPullRequest = (
     })) as any[],
     mergeable,
     head: {
-      sha: headCommit
+      sha: `commit-${number}`
     }
   } as unknown) as Github.PullsListResponseItem);
 export function createGithubApiMocks() {
@@ -68,6 +63,11 @@ export const createTestHelpers = (...mockPullRequests: Github.PullsListResponseI
   githubClient.pulls.get.mockImplementation(({ pull_number }) => ({
     data: _.find(mockPullRequests, x => x.number === pull_number)
   }));
+  githubApiMocks.mockGetBranchRef.mockResolvedValue({ status: 200 });
+  githubApiMocks.mockGetBranchCommit.mockResolvedValue(baseBranchCommit);
+  githubClient.issues.addLabels.mockResolvedValue({});
+  githubClient.issues.removeLabel.mockResolvedValue({});
+  githubClient.issues.createComment.mockResolvedValue({});
   return {
     testData: {
       owner,
@@ -86,7 +86,8 @@ export const createTestHelpers = (...mockPullRequests: Github.PullsListResponseI
       gitCommandsMocks,
       targetBranch,
       githubApiMocks,
-      baseBranch
+      baseBranch,
+      baseBranchCommit
     ),
     runTest: async () => {
       const target = await import("../src/mergeDeployablePullRequests");

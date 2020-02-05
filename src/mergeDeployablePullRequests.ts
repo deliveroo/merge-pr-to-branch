@@ -128,7 +128,7 @@ const getMergablePullRequests = async (
   const labeledPullRequests = pullRequestList.filter(p => {
     const include = hasLabel(p.labels, requestDeploymentLabel);
     if (!include && hasLabel(p.labels, deployedLabel)) {
-      const reason = `Removing pull request from ${targetBranch} due to missing '${requestDeploymentLabel}' label.`;
+      const reason = `Removing '${deployedLabel}' label as '${requestDeploymentLabel}' label is missing.`;
       info(reason);
       prsToRemove.push({
         reason,
