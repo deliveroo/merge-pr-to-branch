@@ -9,5 +9,5 @@ inputs:
     description: 'The access token used to access github api'
     default: ${{ github.token }}      
 runs:
-  using: 'node12'
-  main: 'dist/index.js'
+  using: 'docker'
+  main: 'Dockerfile'
