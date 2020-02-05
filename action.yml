@@ -10,4 +10,4 @@ inputs:
     default: ${{ github.token }}      
 runs:
   using: 'docker'
-  main: 'Dockerfile'
+  image: 'Dockerfile'
