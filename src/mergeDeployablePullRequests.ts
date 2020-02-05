@@ -47,14 +47,16 @@ export const mergeDeployablePullRequests = async (
   await git.resetHard(baseBranchCommit);
   const mergeResults = await mergePullRequests(mergeablePullRequests, targetBranch);
   await git.forcePush();
-  await handleMergeResults(mergeResults, githubClient, owner, repo);
+  await processMergeResults(mergeResults, githubClient, owner, repo);
 };
 
-const handleMergeResults = async (
-  mergeResults: (
-    | { pullRequest: Github.Response<Github.PullsGetResponse>; message: string }
-    | { pullRequest: Github.Response<Github.PullsGetResponse>; errorMessage: string }
-  )[],
+type ExtractPromiseResolveValue<T> = T extends Promise<infer U> ? U : never;
+export type mergePullRequestsResult = ExtractPromiseResolveValue<
+  ReturnType<typeof mergePullRequests>
+>;
+
+const processMergeResults = async (
+  mergeResults: mergePullRequestsResult,
   githubClient: Github,
   owner: string,
   repo: string
