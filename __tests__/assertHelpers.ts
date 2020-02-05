@@ -29,11 +29,10 @@ function assertCommitsMerged(
   commits.forEach(commit => expect(mockMergeCommit).toHaveBeenCalledWith(targetBranch, commit));
 }
 function assertHardReset(mockResetHard: jest.Mock<any, any>, commit: string) {
-  expect(mockResetHard).toHaveBeenCalledTimes(1);
-  expect(mockResetHard).toHaveBeenCalledWith(commit);
+  expect(mockResetHard).toHaveBeenNthCalledWith(1, commit);
 }
-function assertForcePushed(mockForcePush: jest.Mock<any, any>) {
-  expect(mockForcePush).toHaveBeenCalledTimes(1);
+function assertForcePushed(mockForcePush: jest.Mock<any, any>, timesCalled = 1) {
+  expect(mockForcePush).toHaveBeenCalledTimes(timesCalled);
 }
 function assertLabelRemoved(
   githubClient: ReturnType<typeof createMockGithubClient>,
@@ -111,6 +110,7 @@ export function createAssertions(
     commitsMerged: (...commits: string[]) =>
       assertCommitsMerged(gitCommandsMocks.mockMergeCommit, targetBranch, commits),
     hardResetToBase: () => assertHardReset(gitCommandsMocks.mockResetHard, baseBranchCommit),
+    noForcePushed: () => assertForcePushed(gitCommandsMocks.mockForcePush, 0),
     forcePushed: () => assertForcePushed(gitCommandsMocks.mockForcePush),
     targetBranchCreated: () =>
       assertBranchCreated(

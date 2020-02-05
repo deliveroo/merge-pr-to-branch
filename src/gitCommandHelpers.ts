@@ -18,3 +18,5 @@ export const status = () => execCmd("git status");
 export const forcePush = () => execCmd(`git push -f`);
 export const fetch = () => execCmd(`git fetch`);
 export const checkout = (branch: string) => execCmd(`git checkout ${branch}`);
+export const shortStatDiff = (branch1: string, branch2: string) =>
+  execCmd(`git diff ${branch1} ${branch2} --shortstat`, { includeStdOut: true });

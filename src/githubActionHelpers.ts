@@ -5,12 +5,19 @@ import { WebhookPayloadPullRequest, WebhookPayloadPush } from "@octokit/webhooks
 const githubActionName = "merge-pr-to-branch";
 const githubWorkspaceEnvVarName = "GITHUB_WORKSPACE";
 
-export const execCmd = async (...commands: string[]) => {
+export const execCmd = async (command: string, options = { includeStdOut: false }) => {
   const cwd = process.env[githubWorkspaceEnvVarName];
   if (!cwd) {
     throw new Error(`Missing environment variable: '${githubWorkspaceEnvVarName}'.`);
   }
-  return await exec(commands.join("/n"), undefined, { cwd });
+  const stdOutLines: string[] = [];
+  const returnCode = await exec(command, undefined, {
+    cwd,
+    listeners: {
+      stdout: options.includeStdOut ? data => stdOutLines.push(data.toString()) : undefined
+    }
+  });
+  return { returnCode, stdOutLines };
 };
 
 export const createCommitMessage = (message: string) => `${message} by ${githubActionName}`;

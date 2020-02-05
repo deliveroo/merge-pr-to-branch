@@ -42,13 +42,19 @@ export function createGitCommandsMocks() {
   const mockResetHard = jest.fn();
   const mockForcePush = jest.fn();
   const mockMergeCommit = jest.fn();
+  const mockShortStatDiff = jest.fn();
+  mockShortStatDiff.mockResolvedValue({
+    returnCode: 0,
+    stdOutLines: [" 1 file changed, 1 insertion(+), 1 deletion(-)"]
+  });
   jest.mock("../src/gitCommandHelpers", () => ({
     status: mockStatus,
     resetHard: mockResetHard,
     forcePush: mockForcePush,
-    mergeCommit: mockMergeCommit
+    mergeCommit: mockMergeCommit,
+    shortStatDiff: mockShortStatDiff
   }));
-  return { mockMergeCommit, mockStatus, mockResetHard, mockForcePush };
+  return { mockMergeCommit, mockStatus, mockResetHard, mockForcePush, mockShortStatDiff };
 }
 export const createTestHelpers = (...mockPullRequests: Github.PullsListResponseItem[]) => {
   const owner = "owner";

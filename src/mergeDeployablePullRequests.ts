@@ -27,6 +27,22 @@ export const mergeDeployablePullRequests = async (
   targetBranch: string,
   baseBranch: string
 ) => {
+  const baseBranchCommit = await getBranchCommit(githubClient, owner, repo, baseBranch);
+  if (!baseBranchCommit) {
+    throw new Error(`baseBranch: '${baseBranch}' not found.`);
+  }
+  const targetRef = await getBranchRef(githubClient, owner, repo, targetBranch);
+  let targetRefCommit: string;
+  if (!("data" in targetRef)) {
+    await createBranch(githubClient, owner, repo, targetBranch, baseBranch);
+    targetRefCommit = baseBranchCommit;
+  } else {
+    targetRefCommit = targetRef.data.object.sha;
+  }
+
+  // Relies on the standard @actions/checkout action to be run first
+  await git.status();
+  await git.resetHard(baseBranchCommit);
   const mergeablePullRequests = await getMergablePullRequests(
     githubClient,
     owner,
@@ -34,18 +50,20 @@ export const mergeDeployablePullRequests = async (
     baseBranch,
     targetBranch
   );
-  const targetRef = await getBranchRef(githubClient, owner, repo, targetBranch);
-  if (targetRef.status === 404) {
-    await createBranch(githubClient, owner, repo, targetBranch, baseBranch);
-  }
-  const baseBranchCommit = await getBranchCommit(githubClient, owner, repo, baseBranch);
-  if (!baseBranchCommit) {
-    throw new Error(`baseBranch: '${baseBranch}' not found.`);
-  }
-  // Relies on the standard @actions/checkout action to be run first
-  await git.status();
-  await git.resetHard(baseBranchCommit);
   const mergeResults = await mergePullRequests(mergeablePullRequests, targetBranch);
+  const remoteTargetBranch = `origin/${targetBranch}`;
+  const diffResults = await git.shortStatDiff(remoteTargetBranch, targetBranch);
+  if (diffResults.stdOutLines.length === 0) {
+    // no difference means no-op
+    info(`No difference between ${targetBranch} and ${remoteTargetBranch}. Skipping push.`);
+    git.resetHard(targetRefCommit);
+    return;
+  }
+  info(
+    `Pushing local branch as differences found between ${targetBranch} and ${remoteTargetBranch}:\n${diffResults.stdOutLines.join(
+      "\n"
+    )}`
+  );
   await git.forcePush();
   await processMergeResults(mergeResults, githubClient, owner, repo);
 };

@@ -34,9 +34,6 @@ describe("mergeDeployablePullRequests", () => {
     githubApiMocks.mockGetBranchCommit.mockResolvedValue(undefined);
 
     await expect(runTest()).rejects.toEqual(new Error(`baseBranch: '${baseBranch}' not found.`));
-
-    assert.listPullRequests();
-    assert.getTargetBranch();
   });
   it("adds deployed label and a comment when merged and deployed label isnt present", async () => {
     const { assert, runTest, githubApiMocks, gitCommandsMocks } = createTestHelpers(
@@ -111,6 +108,29 @@ describe("mergeDeployablePullRequests", () => {
     assert.forcePushed();
     assert.noLabelsAdded();
     assert.noCommentsAdded();
+  });
+  it("doesnt push the local branch if it is equivalent with the remote", async () => {
+    const { assert, runTest, githubApiMocks, gitCommandsMocks } = createTestHelpers(
+      mergeablePR,
+      unmergeablePR
+    );
+
+    const mergeResultMessage = "foo";
+    githubApiMocks.mockGetBranchRef.mockResolvedValue({ status: 404 });
+    gitCommandsMocks.mockMergeCommit.mockResolvedValue(mergeResultMessage);
+    gitCommandsMocks.mockShortStatDiff.mockResolvedValue({
+      stdOutLines: []
+    });
+
+    await runTest();
+
+    assert.listPullRequests();
+    assert.getTargetBranch();
+    assert.targetBranchCreated();
+    assert.gitStatus();
+    assert.hardResetToBase();
+    assert.commitsMerged(mergeablePR.head.sha);
+    assert.noForcePushed();
   });
 });
 describe("hasLabel", () => {
