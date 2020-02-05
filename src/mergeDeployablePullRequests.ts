@@ -6,7 +6,6 @@ import {
   getBranchRef,
   createBranch,
   getBranchCommit,
-  hasLabel,
   getAllPaginatedItems,
   getBranchFromRef
 } from "./githubApiHelpers";
@@ -39,12 +38,12 @@ export const mergeDeployablePullRequests = async (
   if (targetRef.status === 404) {
     await createBranch(githubClient, owner, repo, targetBranch, baseBranch);
   }
-  // Relies on the standard @actions/checkout action to be run first
-  await git.status();
   const baseBranchCommit = await getBranchCommit(githubClient, owner, repo, baseBranch);
   if (!baseBranchCommit) {
     throw new Error(`baseBranch: '${baseBranch}' not found.`);
   }
+  // Relies on the standard @actions/checkout action to be run first
+  await git.status();
   await git.resetHard(baseBranchCommit);
   const mergeResults = await mergePullRequests(mergeablePullRequests, targetBranch);
   await git.forcePush();
@@ -61,49 +60,44 @@ const handleMergeResults = async (
   repo: string
 ) =>
   await Promise.all(
-    mergeResults.map(async ({ pullRequest, ...rest }) => {
-      if ("errorMessage" in rest) {
-        const { errorMessage } = rest;
-        await githubClient.issues.removeLabel({
-          owner,
-          repo,
-          issue_number: pullRequest.data.number,
-          name: requestDeploymentLabel
-        });
-        await createPullRequestComment(
-          githubClient,
-          owner,
-          repo,
-          pullRequest.data.number,
-          errorMessage
-        );
-      }
-      if (hasLabel(pullRequest.data.labels, deployedLabel)) {
-        await githubClient.issues.removeLabel({
-          owner,
-          repo,
-          issue_number: pullRequest.data.number,
-          name: deployedLabel
-        });
-      } else if ("message" in rest) {
-        if (!hasLabel(pullRequest.data.labels, deployedLabel)) {
-          const { message } = rest;
-          await createPullRequestComment(
-            githubClient,
+    mergeResults.map(
+      async ({
+        pullRequest: {
+          data: { number, labels }
+        },
+        ...rest
+      }) => {
+        if ("errorMessage" in rest) {
+          const { errorMessage } = rest;
+          await githubClient.issues.removeLabel({
             owner,
             repo,
-            pullRequest.data.number,
-            message
-          );
-          await githubClient.issues.addLabels({
-            owner,
-            repo,
-            issue_number: pullRequest.data.number,
-            labels: [deployedLabel]
+            issue_number: number,
+            name: requestDeploymentLabel
           });
+          await createPullRequestComment(githubClient, owner, repo, number, errorMessage);
+        }
+        if (hasLabel(labels, deployedLabel)) {
+          await githubClient.issues.removeLabel({
+            owner,
+            repo,
+            issue_number: number,
+            name: deployedLabel
+          });
+        } else if ("message" in rest) {
+          if (!hasLabel(labels, deployedLabel)) {
+            const { message } = rest;
+            await createPullRequestComment(githubClient, owner, repo, number, message);
+            await githubClient.issues.addLabels({
+              owner,
+              repo,
+              issue_number: number,
+              labels: [deployedLabel]
+            });
+          }
         }
       }
-    })
+    )
   );
 const getMergablePullRequests = async (
   githubClient: Github,
@@ -120,9 +114,10 @@ const getMergablePullRequests = async (
     direction: "asc",
     state: "open"
   };
-  const pullRequestList = await getAllPaginatedItems<Github.PullsListResponseItem>(
+  const pullRequestList = await getAllPaginatedItems(
     githubClient,
-    githubClient.pulls.list.endpoint.merge(listOptions)
+    githubClient.pulls.list,
+    listOptions
   );
   info(
     `Found ${pullRequestList.length} ${listOptions.state} pull requests against '${listOptions.base}'.`
@@ -231,3 +226,5 @@ export const getBaseBranch = (context: githubContext, payload: githubPayload) =>
     return getBranchFromRef(payload.ref);
   }
 };
+export const hasLabel = (labels: (string | { name: string })[], label: string) =>
+  labels.some(l => (l instanceof Object ? l.name === label : l === label));

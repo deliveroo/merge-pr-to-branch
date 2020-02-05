@@ -2,8 +2,8 @@ import { createGithubClient } from "../src/githubApiHelpers";
 import * as git from "../src/gitCommandHelpers";
 import { mergeDeployablePullRequests } from "../src/mergeDeployablePullRequests";
 
-describe("main", () => {
-  it("mergeDeployablePullRequests intergration test", async () => {
+describe("mergeDeployablePullRequests", () => {
+  it("intergration test", async () => {
     const targetBranch = "sandbox";
     await git.fetch();
     await git.checkout(targetBranch);

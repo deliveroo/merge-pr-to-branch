@@ -1,9 +1,6 @@
 import Github from "@octokit/rest";
 import _ from "lodash";
 
-export const hasLabel = (labels: (string | { name: string })[], label: string) =>
-  labels.some(l => (l instanceof Object ? l.name === label : l === label));
-
 export const getBranchFromRef = (ref: string) => _.last(_.split(ref, "/"));
 const formatHeadFromBranch = (branch: string) => `heads/${branch}`;
 const formatRefFromBranch = (branch: string) => `refs/${formatHeadFromBranch(branch)}`;
@@ -60,17 +57,38 @@ export const createBranch = async (
   }
 };
 
-export const getAllPaginatedItems = async <T>(githubClient: Github, options: {}) => {
-  const pages: T[] = [];
-  const iterator = githubClient.paginate.iterator(options);
+type ExtractGithubResponseDataType<T> = T extends {
+  (): Promise<Github.Response<(infer U)[]>>;
+}
+  ? U
+  : never;
+type GithubCommand<D, O extends Github.RequestOptions> = {
+  (params?: O): Promise<Github.Response<D>>;
+  endpoint: Github.Endpoint;
+};
+
+export const getAllPaginatedItems = async <
+  T extends GithubCommand<D, O>,
+  R extends Github.Response<D>,
+  I = ExtractGithubResponseDataType<T>,
+  D = I[],
+  O = Parameters<T>[0]
+>(
+  githubClient: Github,
+  command: T,
+  options: O
+) => {
+  const iterator = githubClient.paginate.iterator(
+    command.endpoint.merge(options)
+  ) as AsyncIterableIterator<R>;
+  const pages: D[] = [];
   for await (const page of iterator) {
     if (page.status !== 200) {
       throw new Error(`paginate iterator didn't return status 200: '${page.status}'.`);
     }
     pages.push(page.data);
   }
-
-  return _.flatMap(pages);
+  return (_.flatMap(pages) as unknown) as I[];
 };
 
 export const getBranchCommit = async (

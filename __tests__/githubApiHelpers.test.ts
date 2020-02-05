@@ -1,4 +1,4 @@
-import { getBranchFromRef, hasLabel, getBranchRef } from "../src/githubApiHelpers";
+import { getBranchFromRef, getBranchRef } from "../src/githubApiHelpers";
 
 describe("githubHelpers", () => {
   it("getBranchFromRef returns last segment of ref", () => {
@@ -6,18 +6,6 @@ describe("githubHelpers", () => {
   });
   it("getBranchFromRef returns ref when no separators", () => {
     expect(getBranchFromRef("foo")).toBe("foo");
-  });
-  it("hasLabel returns true when exists in array of strings", () => {
-    expect(hasLabel(["bar"], "bar")).toBeTruthy();
-  });
-  it("hasLabel returns true when exists in array of objects", () => {
-    expect(hasLabel([{ name: "a" }], "a")).toBeTruthy();
-  });
-  it("hasLabel returns false when not exists in array of strings", () => {
-    expect(hasLabel(["bar"], "foo")).toBeFalsy();
-  });
-  it("hasLabel returns false when not exists in array of objects", () => {
-    expect(hasLabel([{ name: "foo" }], "a")).toBeFalsy();
   });
   it("getBranchRef calls getRef as expected", async () => {
     const expectedResult = {};
