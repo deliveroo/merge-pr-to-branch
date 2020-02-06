@@ -19,43 +19,24 @@ describe("mergeDeployablePullRequests", () => {
     assert.listPullRequests();
     assert.getTargetBranch();
     assert.targetBranchCreated();
-    assert.gitStatus();
-    assert.hardResetToBase();
-    assert.forcePushed();
-  });
-  it("throws when baseBranch is missing", async () => {
-    const {
-      assert,
-      runTest,
-      githubApiMocks,
-      testData: { baseBranch }
-    } = createTestHelpers();
-
-    githubApiMocks.mockGetBranchCommit.mockResolvedValue(undefined);
-
-    await expect(runTest()).rejects.toEqual(new Error(`baseBranch: '${baseBranch}' not found.`));
   });
   it("adds deployed label and a comment when merged and deployed label isnt present", async () => {
-    const { assert, runTest, githubApiMocks, gitCommandsMocks } = createTestHelpers(
-      mergeablePR,
-      unmergeablePR
-    );
+    const { assert, runTest, githubApiMocks } = createTestHelpers(mergeablePR, unmergeablePR);
 
-    const mergeResultMessage = "foo";
     githubApiMocks.mockGetBranchRef.mockResolvedValue({ status: 404 });
-    gitCommandsMocks.mockMergeCommit.mockResolvedValue(mergeResultMessage);
 
     await runTest();
 
     assert.listPullRequests();
     assert.getTargetBranch();
     assert.targetBranchCreated();
+    assert.gitWorkspace();
     assert.gitStatus();
     assert.hardResetToBase();
     assert.commitsMerged(mergeablePR.head.sha);
     assert.forcePushed();
     assert.labelAdded(mergeablePR.number, "deployed");
-    assert.commentsAdded(mergeablePR.number, [expect.stringContaining(mergeResultMessage)]);
+    assert.commentsAdded(mergeablePR.number, [expect.stringContaining(mergeablePR.head.sha)]);
   });
   it("removes deploy label and adds a comment when merge fails and deployed label isnt present", async () => {
     const { assert, runTest, githubApiMocks, gitCommandsMocks } = createTestHelpers(
@@ -72,6 +53,7 @@ describe("mergeDeployablePullRequests", () => {
     assert.listPullRequests();
     assert.getTargetBranch();
     assert.targetBranchCreated();
+    assert.gitWorkspace();
     assert.gitStatus();
     assert.commitsMerged(mergeablePR.head.sha);
     assert.hardResetToBase();
@@ -86,6 +68,7 @@ describe("mergeDeployablePullRequests", () => {
 
     assert.listPullRequests();
     assert.getTargetBranch();
+    assert.gitWorkspace();
     assert.gitStatus();
     assert.hardResetToBase();
     assert.forcePushed();
@@ -102,6 +85,7 @@ describe("mergeDeployablePullRequests", () => {
 
     assert.listPullRequests();
     assert.getTargetBranch();
+    assert.gitWorkspace();
     assert.gitStatus();
     assert.hardResetToBase();
     assert.commitsMerged(mergeableDeployedPR.head.sha);
@@ -127,6 +111,7 @@ describe("mergeDeployablePullRequests", () => {
     assert.listPullRequests();
     assert.getTargetBranch();
     assert.targetBranchCreated();
+    assert.gitWorkspace();
     assert.gitStatus();
     assert.hardResetToBase();
     assert.commitsMerged(mergeablePR.head.sha);

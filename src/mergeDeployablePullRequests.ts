@@ -1,21 +1,23 @@
 import { info, warning } from "@actions/core";
 import Github from "@octokit/rest";
-import * as git from "./gitCommandHelpers";
+import { gitCommandManager } from "./gitCommandManager";
 import { serializeError } from "serialize-error";
 import {
-  getBranchRef,
-  createBranch,
-  getBranchCommit,
   getAllPaginatedItems,
-  getBranchFromRef
+  getBranchFromRef,
+  getBranchRef,
+  createBranch
 } from "./githubApiHelpers";
 import {
   createCommentMessage,
   isPullRequestEvent,
   isPushEvent,
   githubPayload,
-  githubContext
+  githubContext,
+  createCommitMessage
 } from "./githubActionHelpers";
+import { promises } from "fs";
+const { mkdtemp } = promises;
 
 const requestDeploymentLabel = "deploy";
 const deployedLabel = "deployed";
@@ -27,22 +29,6 @@ export const mergeDeployablePullRequests = async (
   targetBranch: string,
   baseBranch: string
 ) => {
-  const baseBranchCommit = await getBranchCommit(githubClient, owner, repo, baseBranch);
-  if (!baseBranchCommit) {
-    throw new Error(`baseBranch: '${baseBranch}' not found.`);
-  }
-  const targetRef = await getBranchRef(githubClient, owner, repo, targetBranch);
-  let targetRefCommit: string;
-  if (!("data" in targetRef)) {
-    await createBranch(githubClient, owner, repo, targetBranch, baseBranch);
-    targetRefCommit = baseBranchCommit;
-  } else {
-    targetRefCommit = targetRef.data.object.sha;
-  }
-
-  // Relies on the standard @actions/checkout action to be run first
-  await git.status();
-  await git.resetHard(baseBranchCommit);
   const mergeablePullRequests = await getMergablePullRequests(
     githubClient,
     owner,
@@ -50,13 +36,27 @@ export const mergeDeployablePullRequests = async (
     baseBranch,
     targetBranch
   );
-  const mergeResults = await mergePullRequests(mergeablePullRequests, targetBranch);
-  const remoteTargetBranch = `origin/${targetBranch}`;
+  const prRefs = mergeablePullRequests.map(p => p.data.head.ref);
+  const workingDirectory = await mkdtemp("git-workspace");
+  const git = new gitCommandManager(workingDirectory);
+  const remoteName = "origin";
+  const remoteBaseBranch = `${remoteName}/${baseBranch}`;
+  const remoteTargetBranch = `${remoteName}/${targetBranch}`;
+  const targetRef = await getBranchRef(githubClient, owner, repo, targetBranch);
+  if (!("data" in targetRef)) {
+    await createBranch(githubClient, owner, repo, targetBranch, baseBranch);
+  }
+  await git.init();
+  await git.remoteAdd(remoteName, `https://github.com/${owner}/${repo}.git`);
+  await git.fetch(0, remoteName, baseBranch, targetBranch, ...prRefs);
+  await git.checkout(targetBranch);
+  await git.status();
+  await git.resetHard(remoteBaseBranch);
+  const mergeResults = await mergePullRequests(git, mergeablePullRequests, targetBranch);
   const diffResults = await git.shortStatDiff(remoteTargetBranch, targetBranch);
   if (diffResults.stdOutLines.length === 0) {
-    // no difference means no-op
     info(`No difference between ${targetBranch} and ${remoteTargetBranch}. Skipping push.`);
-    git.resetHard(targetRefCommit);
+    git.resetHard(remoteTargetBranch);
     return;
   }
   info(
@@ -202,12 +202,13 @@ const getMergablePullRequests = async (
 };
 
 async function mergePullRequests(
+  git: gitCommandManager,
   pullRequests: Github.Response<Github.PullsGetResponse>[],
   targetBranch: string
 ) {
   return await Promise.all(
     pullRequests.map(async pullRequest =>
-      git.mergeCommit(targetBranch, pullRequest.data.head.sha).then(
+      mergeCommit(git, targetBranch, pullRequest.data.head.sha).then(
         async message => {
           return { pullRequest, message };
         },
@@ -248,3 +249,14 @@ export const getBaseBranch = (context: githubContext, payload: githubPayload) =>
 };
 export const hasLabel = (labels: (string | { name: string })[], label: string) =>
   labels.some(l => (l instanceof Object ? l.name === label : l === label));
+export const mergeCommit = async (git: gitCommandManager, targetBranch: string, ref: string) => {
+  const mergeMessage = createCommitMessage("merged");
+  return await git.mergeCommit(ref, mergeMessage).then(
+    () => `Successfully merged '${ref}' to '${targetBranch}'.`,
+    error => {
+      throw new Error(
+        `Merge '${ref}' to '${targetBranch}' failed: \n${JSON.stringify(serializeError(error))}`
+      );
+    }
+  );
+};

@@ -1,4 +1,9 @@
-import { createMockGithubClient } from "./testHelpers";
+import {
+  createMockGithubClient,
+  createGitCommandsMocks,
+  createGithubApiMocks
+} from "./testHelpers";
+import Github from "@octokit/rest";
 
 function assertBranchCreated(
   mockCreateBranch: jest.Mock<any, any>,
@@ -20,13 +25,11 @@ function assertBranchCreated(
 function assertGitStatus(mockStatus: jest.Mock<any, any>) {
   expect(mockStatus).toHaveBeenCalledTimes(1);
 }
-function assertCommitsMerged(
-  mockMergeCommit: jest.Mock<any, any>,
-  targetBranch: string,
-  commits: string[]
-) {
+function assertCommitsMerged(mockMergeCommit: jest.Mock<any, any>, commits: string[]) {
   expect(mockMergeCommit).toHaveBeenCalledTimes(commits.length);
-  commits.forEach(commit => expect(mockMergeCommit).toHaveBeenCalledWith(targetBranch, commit));
+  commits.forEach(commit =>
+    expect(mockMergeCommit).toHaveBeenCalledWith(commit, "merged by merge-pr-to-branch")
+  );
 }
 function assertHardReset(mockResetHard: jest.Mock<any, any>, commit: string) {
   expect(mockResetHard).toHaveBeenNthCalledWith(1, commit);
@@ -73,32 +76,17 @@ function assertListPullRequests(
   );
 }
 export function createAssertions(
-  githubClient: {
-    issues: {
-      addLabels: jest.Mock<any, any>;
-      removeLabel: jest.Mock<any, any>;
-      createComment: jest.Mock<any, any>;
-    };
-    pulls: { get: jest.Mock<any, any>; list: {} };
-  },
+  githubClient: ReturnType<typeof createMockGithubClient>,
   owner: string,
   repo: string,
-  gitCommandsMocks: {
-    mockMergeCommit: jest.Mock<any, any>;
-    mockStatus: jest.Mock<any, any>;
-    mockResetHard: jest.Mock<any, any>;
-    mockForcePush: jest.Mock<any, any>;
-  },
+  gitCommandsMocks: ReturnType<typeof createGitCommandsMocks>,
   targetBranch: string,
-  githubApiMocks: {
-    mockGetAllPaginatedItems: jest.Mock<any, any>;
-    mockGetBranchRef: jest.Mock<any, any>;
-    mockGetBranchCommit: jest.Mock<any, any>;
-    mockCreateBranch: jest.Mock<any, any>;
-  },
+  githubApiMocks: ReturnType<typeof createGithubApiMocks>,
   baseBranch: string,
-  baseBranchCommit: string
+  mockPullRequests: Github.PullsGetResponse[]
 ) {
+  const remoteName = "origin";
+  const prRefs = mockPullRequests.filter(p => p.mergeable).map(p => p.head.ref);
   return {
     noLabelsAdded: () => assertNoLabelsAdded(githubClient),
     noLabelsRemoved: () => assertNoLabelsRemoved(githubClient),
@@ -108,8 +96,9 @@ export function createAssertions(
       assertLabelRemoved(githubClient, owner, repo, issue_number, label),
     gitStatus: () => assertGitStatus(gitCommandsMocks.mockStatus),
     commitsMerged: (...commits: string[]) =>
-      assertCommitsMerged(gitCommandsMocks.mockMergeCommit, targetBranch, commits),
-    hardResetToBase: () => assertHardReset(gitCommandsMocks.mockResetHard, baseBranchCommit),
+      assertCommitsMerged(gitCommandsMocks.mockMergeCommit, commits),
+    hardResetToBase: () =>
+      assertHardReset(gitCommandsMocks.mockResetHard, `${remoteName}/${baseBranch}`),
     noForcePushed: () => assertForcePushed(gitCommandsMocks.mockForcePush, 0),
     forcePushed: () => assertForcePushed(gitCommandsMocks.mockForcePush),
     targetBranchCreated: () =>
@@ -132,7 +121,22 @@ export function createAssertions(
       ),
     noCommentsAdded: () => assertNoCommentsAdded(githubClient),
     commentsAdded: (issue_number: number, comments: any[]) =>
-      assertCommentsAdded(githubClient, owner, repo, issue_number, comments)
+      assertCommentsAdded(githubClient, owner, repo, issue_number, comments),
+    gitWorkspace: () => {
+      expect(gitCommandsMocks.mockInit).toHaveBeenCalledTimes(1);
+      expect(gitCommandsMocks.mockRemoteAdd).toHaveBeenCalledWith(
+        remoteName,
+        `https://github.com/${owner}/${repo}.git`
+      );
+      expect(gitCommandsMocks.mockFetch).toHaveBeenCalledWith(
+        0,
+        remoteName,
+        baseBranch,
+        targetBranch,
+        ...prRefs
+      );
+      expect(gitCommandsMocks.mockCheckout).toHaveBeenCalledWith(targetBranch);
+    }
   };
 }
 function assertCommentsAdded(

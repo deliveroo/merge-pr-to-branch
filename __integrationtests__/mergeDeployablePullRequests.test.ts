@@ -1,12 +1,9 @@
 import { createGithubClient } from "../src/githubApiHelpers";
-import * as git from "../src/gitCommandHelpers";
 import { mergeDeployablePullRequests } from "../src/mergeDeployablePullRequests";
 
 describe("mergeDeployablePullRequests", () => {
   it("intergration test", async () => {
     const targetBranch = "sandbox";
-    await git.fetch();
-    await git.checkout(targetBranch);
     const { GITHUB_PAT, GITHUB_USER } = process.env;
     if (!GITHUB_PAT || !GITHUB_USER) {
       throw new Error(`Missing GITHUB_* environment variables.`);
