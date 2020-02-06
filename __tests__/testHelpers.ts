@@ -48,6 +48,17 @@ export function createGitCommandsMocks() {
   const mockRemoteAdd = jest.fn();
   const mockFetch = jest.fn();
   const mockCheckout = jest.fn();
+  const mockGitCommandManager = {
+    checkout: mockCheckout,
+    fetch: mockFetch,
+    init: mockInit,
+    status: mockStatus,
+    remoteAdd: mockRemoteAdd,
+    resetHard: mockResetHard,
+    forcePush: mockForcePush,
+    mergeCommit: mockMergeCommit,
+    shortStatDiff: mockShortStatDiff
+  };
   mockShortStatDiff.mockResolvedValue({
     returnCode: 0,
     stdOutLines: [" 1 file changed, 1 insertion(+), 1 deletion(-)"]
@@ -55,21 +66,12 @@ export function createGitCommandsMocks() {
   jest.mock("../src/gitCommandManager", function() {
     return {
       gitCommandManager: function() {
-        return {
-          checkout: mockCheckout,
-          fetch: mockFetch,
-          init: mockInit,
-          status: mockStatus,
-          remoteAdd: mockRemoteAdd,
-          resetHard: mockResetHard,
-          forcePush: mockForcePush,
-          mergeCommit: mockMergeCommit,
-          shortStatDiff: mockShortStatDiff
-        };
+        return mockGitCommandManager;
       }
     };
   });
   return {
+    mockGitCommandManager,
     mockCheckout,
     mockFetch,
     mockInit,
@@ -132,6 +134,7 @@ export const createTestHelpers = (...mockPullRequests: Github.PullsGetResponse[]
       const target = await import("../src/mergeDeployablePullRequests");
       await target.mergeDeployablePullRequests(
         githubClient as any,
+        gitCommandsMocks.mockGitCommandManager as any,
         owner,
         repo,
         targetBranch,

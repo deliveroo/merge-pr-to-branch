@@ -123,7 +123,6 @@ export function createAssertions(
     commentsAdded: (issue_number: number, comments: any[]) =>
       assertCommentsAdded(githubClient, owner, repo, issue_number, comments),
     gitWorkspace: () => {
-      expect(gitCommandsMocks.mockInit).toHaveBeenCalledTimes(1);
       expect(gitCommandsMocks.mockRemoteAdd).toHaveBeenCalledWith(
         remoteName,
         `https://github.com/${owner}/${repo}.git`
