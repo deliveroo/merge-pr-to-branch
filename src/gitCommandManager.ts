@@ -25,6 +25,7 @@ export class gitCommandManager {
     remoteUrl.password = this.token;
     return this.execGit(`git remote add ${remote} ${remoteUrl.toJSON()}`);
   };
+  public config = (key: string, value: string) => this.execGit(`git config ${key} ${value}`);
   execGit = (
     command: string,
     options: Omit<Parameters<typeof execCmd>[1], "cwd"> = { includeStdOut: false }
