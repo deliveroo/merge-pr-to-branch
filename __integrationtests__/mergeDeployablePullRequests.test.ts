@@ -18,7 +18,7 @@ describe("mergeDeployablePullRequests", () => {
 
     const client = createGithubClient(auth);
     const workingDirectory = mkdtempSync("git-workspace");
-    const git = new gitCommandManager(workingDirectory, GITHUB_PAT);
+    const git = new gitCommandManager(workingDirectory, GITHUB_USER, GITHUB_PAT);
     await mergeDeployablePullRequests(client, git, "deliveroo", "dev-glue", targetBranch, "master");
   }, 100000);
 });

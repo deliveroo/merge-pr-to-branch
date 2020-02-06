@@ -33,10 +33,15 @@ async function run() {
 
     info(`Using baseBranch: '${baseBranch}'.`);
 
-    const auth = getInput("repo-token");
-    const githubClient = createGithubClient(auth);
+    const token = getInput("repo-token");
+    const user = process.env.GITHUB_ACTOR;
+
+    if (!user) {
+      throw new Error("Missing GITHUB_ACTOR environment variable");
+    }
+    const githubClient = createGithubClient(token);
     const workingDirectory = await mkdtemp("git-workspace");
-    const git = new gitCommandManager(workingDirectory, auth);
+    const git = new gitCommandManager(workingDirectory, user, token);
     await mergeDeployablePullRequests(githubClient, git, owner, repo, targetBranch, baseBranch);
   } catch (error) {
     setFailed(JSON.stringify(serializeError(error)));

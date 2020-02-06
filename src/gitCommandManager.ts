@@ -1,7 +1,11 @@
 import { execCmd } from "./githubActionHelpers";
 
 export class gitCommandManager {
-  public constructor(private readonly workingDirectory: string, private readonly token: string) {}
+  public constructor(
+    private readonly workingDirectory: string,
+    private readonly user: string,
+    private readonly token: string
+  ) {}
   public mergeCommit = async (commit: string, message: string) =>
     await this.execGit(`git merge ${commit} --commit -m "${message}"`);
   public resetHard = (sha: string) => this.execGit(`git reset --hard ${sha}`);
@@ -17,7 +21,8 @@ export class gitCommandManager {
   public init = () => this.execGit("git init");
   public remoteAdd = async (remote: string, url: string) => {
     const remoteUrl = new URL(url);
-    remoteUrl.username = this.token;
+    remoteUrl.username = this.user;
+    remoteUrl.password = this.token;
     return this.execGit(`git remote add ${remote} ${remoteUrl.toJSON()}`);
   };
   execGit = (
