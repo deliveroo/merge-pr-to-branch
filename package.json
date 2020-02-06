@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "description": "Merges Pull Requests that are labeled with 'deploy'.",
   "scripts": {
-    "build": "tsc -p tsconfig.prod.json && npx -p @zeit/ncc ncc build dist/main.js --minify",
+    "build": "tsc -p tsconfig.prod.json",
     "format": "prettier --write **/*.ts",
     "test": "jest __tests__/**",
     "test:integration": "jest __integrationtests__/**"

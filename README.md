@@ -37,11 +37,3 @@ jobs:
 2. `merge-pr-to-branch` will run and attempt to merge the pull request
     * If successful, the `deployed` label will be added along with a comment
     * If unsuccessful, a comment with the error will be added and the `deploy` label will be removed
-
-# Contributing
-
-Before commiting your change, ensure you build the distributed js file. Github Actions require bundled output in the repo.
-
-```
-npm run build
-```

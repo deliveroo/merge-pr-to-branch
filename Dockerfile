@@ -13,4 +13,4 @@ COPY . .
 
 RUN npm run build
 
-ENTRYPOINT ["node", "/app/dist/index.js"]
+ENTRYPOINT ["node", "/app/dist/main.js"]
