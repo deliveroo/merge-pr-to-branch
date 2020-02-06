@@ -43,7 +43,6 @@ export const mergeDeployablePullRequests = async (
   if (!("data" in targetRef)) {
     await createBranch(githubClient, owner, repo, targetBranch, baseBranch);
   }
-  await git.init();
   await git.remoteAdd(remoteName, `https://github.com/${owner}/${repo}.git`);
   await git.fetch(0, remoteName, baseBranch, targetBranch, ...prRefs);
   await git.checkout(targetBranch);

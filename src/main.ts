@@ -42,6 +42,7 @@ async function run() {
     const githubClient = createGithubClient(token);
     const workingDirectory = await mkdtemp("git-workspace");
     const git = new gitCommandManager(workingDirectory, user, token);
+    git.init();
     git.config("user.email", "action@github.com");
     git.config("user.name", "GitHub Action");
     await mergeDeployablePullRequests(githubClient, git, owner, repo, targetBranch, baseBranch);
