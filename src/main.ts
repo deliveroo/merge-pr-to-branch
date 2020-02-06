@@ -3,6 +3,9 @@ import { context } from "@actions/github";
 import { serializeError } from "serialize-error";
 import { createGithubClient } from "./githubApiHelpers";
 import { mergeDeployablePullRequests, getBaseBranch } from "./mergeDeployablePullRequests";
+import { gitCommandManager } from "./gitCommandManager";
+import { promises } from "fs";
+const { mkdtemp } = promises;
 
 const targetBranchInputName = "target-branch";
 async function run() {
@@ -32,7 +35,9 @@ async function run() {
 
     const auth = getInput("repo-token");
     const githubClient = createGithubClient(auth);
-    await mergeDeployablePullRequests(githubClient, owner, repo, targetBranch, baseBranch);
+    const workingDirectory = await mkdtemp("git-workspace");
+    const git = new gitCommandManager(workingDirectory, auth);
+    await mergeDeployablePullRequests(githubClient, git, owner, repo, targetBranch, baseBranch);
   } catch (error) {
     setFailed(JSON.stringify(serializeError(error)));
   }

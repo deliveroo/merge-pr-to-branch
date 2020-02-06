@@ -16,14 +16,13 @@ import {
   githubContext,
   createCommitMessage
 } from "./githubActionHelpers";
-import { promises } from "fs";
-const { mkdtemp } = promises;
 
 const requestDeploymentLabel = "deploy";
 const deployedLabel = "deployed";
 
 export const mergeDeployablePullRequests = async (
   githubClient: Github,
+  git: gitCommandManager,
   owner: string,
   repo: string,
   targetBranch: string,
@@ -37,8 +36,6 @@ export const mergeDeployablePullRequests = async (
     targetBranch
   );
   const prRefs = mergeablePullRequests.map(p => p.data.head.ref);
-  const workingDirectory = await mkdtemp("git-workspace");
-  const git = new gitCommandManager(workingDirectory);
   const remoteName = "origin";
   const remoteBaseBranch = `${remoteName}/${baseBranch}`;
   const remoteTargetBranch = `${remoteName}/${targetBranch}`;

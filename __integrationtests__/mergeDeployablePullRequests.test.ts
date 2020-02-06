@@ -1,5 +1,7 @@
 import { createGithubClient } from "../src/githubApiHelpers";
 import { mergeDeployablePullRequests } from "../src/mergeDeployablePullRequests";
+import { gitCommandManager } from "../src/gitCommandManager";
+import { mkdtempSync } from "fs";
 
 describe("mergeDeployablePullRequests", () => {
   it("intergration test", async () => {
@@ -15,6 +17,8 @@ describe("mergeDeployablePullRequests", () => {
     };
 
     const client = createGithubClient(auth);
-    await mergeDeployablePullRequests(client, "deliveroo", "dev-glue", targetBranch, "master");
+    const workingDirectory = mkdtempSync("git-workspace");
+    const git = new gitCommandManager(workingDirectory, GITHUB_PAT);
+    await mergeDeployablePullRequests(client, git, "deliveroo", "dev-glue", targetBranch, "master");
   }, 100000);
 });

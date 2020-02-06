@@ -1,10 +1,7 @@
 import { execCmd } from "./githubActionHelpers";
 
 export class gitCommandManager {
-  private readonly cwd: string;
-  public constructor(workingDirectory: string) {
-    this.cwd = workingDirectory;
-  }
+  public constructor(private readonly workingDirectory: string, private readonly token: string) {}
   public mergeCommit = async (commit: string, message: string) =>
     await this.execGit(`git merge ${commit} --commit -m "${message}"`);
   public resetHard = (sha: string) => this.execGit(`git reset --hard ${sha}`);
@@ -18,10 +15,13 @@ export class gitCommandManager {
   public shortStatDiff = (branch1: string, branch2: string) =>
     this.execGit(`git diff ${branch1} ${branch2} --shortstat`, { includeStdOut: true });
   public init = () => this.execGit("git init");
-  public remoteAdd = (remote: string, url: string) =>
-    this.execGit(`git remote add ${remote} ${url}`);
+  public remoteAdd = async (remote: string, url: string) => {
+    const remoteUrl = new URL(url);
+    remoteUrl.username = this.token;
+    return this.execGit(`git remote add ${remote} ${remoteUrl.toJSON()}`);
+  };
   execGit = (
     command: string,
     options: Omit<Parameters<typeof execCmd>[1], "cwd"> = { includeStdOut: false }
-  ) => execCmd(command, { ...options, cwd: this.cwd });
+  ) => execCmd(command, { ...options, cwd: this.workingDirectory });
 }
