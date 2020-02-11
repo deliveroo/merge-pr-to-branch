@@ -8,6 +8,12 @@ inputs:
   repo-token:
     description: 'The access token used to access github api'
     default: ${{ github.token }}      
+  lock-branch-name:
+    description: 'Branch name to use as a semaphore to prevent parallel execution'
+    default: lock
+  lock-check-interval-ms:
+    description: 'Interval to check for the semaphore in milliseconds'
+    default: '30000'
 runs:
   using: 'docker'
   image: 'Dockerfile'

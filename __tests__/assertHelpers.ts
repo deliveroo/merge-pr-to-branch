@@ -69,6 +69,10 @@ export function createAssertions(
     commentsAdded: (issue_number: number, comments: any[]) =>
       assertCommentsAdded(githubClient, issue_number, comments),
     gitWorkspace: () => {
+      expect(gitCommandsMocks.init).toBeCalledTimes(1);
+      expect(gitCommandsMocks.config).toBeCalledTimes(2);
+      expect(gitCommandsMocks.config.mock.calls[0]).toEqual(["user.email", "action@github.com"]);
+      expect(gitCommandsMocks.config.mock.calls[1]).toEqual(["user.name", "GitHub Action"]);
       expect(gitCommandsMocks.remoteAdd).toHaveBeenCalledWith(
         remoteName,
         githubClient.getRemoteUrl()

@@ -1,13 +1,16 @@
 import { getInput, info, setFailed } from "@actions/core";
 import { context } from "@actions/github";
 import { serializeError } from "serialize-error";
+import { githubApiManager } from "./githubApiManager";
 import { mergeDeployablePullRequests, getBaseBranch } from "./mergeDeployablePullRequests";
 import { gitCommandManager } from "./gitCommandManager";
 import { promises } from "fs";
-import { githubApiManager } from "./githubApiManager";
+import { acquireLock, removeLock } from "./acquireLock";
 const { mkdtemp } = promises;
 
 const targetBranchInputName = "target-branch";
+const lockBranchNameInputName = "lock-branch-name";
+const lockCheckIntervalInputName = "lock-check-interval-ms";
 export async function run() {
   try {
     const targetBranch = getInput(targetBranchInputName);
@@ -40,12 +43,15 @@ export async function run() {
       throw new Error("Missing GITHUB_ACTOR environment variable");
     }
     const github = new githubApiManager(token, owner, repo);
+    const lockBranchName = getInput(lockBranchNameInputName);
+    const lockCheckIntervalInMs = Number(getInput(lockCheckIntervalInputName));
+    while (!(await acquireLock(github, lockBranchName, baseBranch))) {
+      await new Promise(resolve => setTimeout(resolve, lockCheckIntervalInMs));
+    }
     const workingDirectory = await mkdtemp("git-workspace");
     const git = new gitCommandManager(workingDirectory, user, token);
-    await git.init();
-    await git.config("user.email", "action@github.com");
-    await git.config("user.name", "GitHub Action");
     await mergeDeployablePullRequests(github, git, targetBranch, baseBranch);
+    await removeLock(github, lockBranchName);
   } catch (error) {
     setFailed(JSON.stringify(serializeError(error)));
   }
