@@ -10,7 +10,7 @@ const invalidDeployedPR = createPullRequest(5, false, ["deployed"]);
 describe("mergeDeployablePullRequests", () => {
   beforeEach(jest.resetModules);
   it("creates targetBranch if missing", async () => {
-    const { assert, runTest, githubApiMocks } = createTestHelpers();
+    const { assert, runTest, githubApiMocks } = await createTestHelpers();
 
     githubApiMocks.mockGetBranchRef.mockResolvedValue({ status: 404 });
 
@@ -21,7 +21,7 @@ describe("mergeDeployablePullRequests", () => {
     assert.targetBranchCreated();
   });
   it("adds deployed label and a comment when merged and deployed label isnt present", async () => {
-    const { assert, runTest, githubApiMocks } = createTestHelpers(mergeablePR, unmergeablePR);
+    const { assert, runTest, githubApiMocks } = await createTestHelpers(mergeablePR, unmergeablePR);
 
     githubApiMocks.mockGetBranchRef.mockResolvedValue({ status: 404 });
 
@@ -39,14 +39,14 @@ describe("mergeDeployablePullRequests", () => {
     assert.commentsAdded(mergeablePR.number, [expect.stringContaining(mergeablePR.head.sha)]);
   });
   it("removes deploy label and adds a comment when merge fails and deployed label isnt present", async () => {
-    const { assert, runTest, githubApiMocks, gitCommandsMocks } = createTestHelpers(
+    const { assert, runTest, githubApiMocks, gitCommandsMocks } = await createTestHelpers(
       mergeablePR,
       unmergeablePR
     );
 
     githubApiMocks.mockGetBranchRef.mockResolvedValue({ status: 404 });
     const mergeFailureReason = "merge failed";
-    gitCommandsMocks.mockMergeCommit.mockRejectedValue(mergeFailureReason);
+    gitCommandsMocks.mergeCommit.mockRejectedValue(mergeFailureReason);
 
     await runTest();
 
@@ -62,7 +62,7 @@ describe("mergeDeployablePullRequests", () => {
     assert.commentsAdded(mergeablePR.number, [expect.stringContaining(mergeFailureReason)]);
   });
   it("removes deployed label and adds a comment deploy label isnt present", async () => {
-    const { assert, runTest } = createTestHelpers(invalidDeployedPR);
+    const { assert, runTest } = await createTestHelpers(invalidDeployedPR);
 
     await runTest();
 
@@ -76,10 +76,9 @@ describe("mergeDeployablePullRequests", () => {
     assert.commentsAdded(invalidDeployedPR.number, [expect.stringContaining("label is missing")]);
   });
   it("doesnt add deployed label or a comment when deployed label is present", async () => {
-    const { assert, runTest, gitCommandsMocks } = createTestHelpers(mergeableDeployedPR);
+    const { assert, runTest, gitCommandsMocks } = await createTestHelpers(mergeableDeployedPR);
 
-    const mergeResultMessage = "foo";
-    gitCommandsMocks.mockMergeCommit.mockResolvedValue(mergeResultMessage);
+    gitCommandsMocks.mergeCommit.mockResolvedValue({} as any);
 
     await runTest();
 
@@ -94,15 +93,15 @@ describe("mergeDeployablePullRequests", () => {
     assert.noCommentsAdded();
   });
   it("doesnt push the local branch if it is equivalent with the remote", async () => {
-    const { assert, runTest, githubApiMocks, gitCommandsMocks } = createTestHelpers(
+    const { assert, runTest, githubApiMocks, gitCommandsMocks } = await createTestHelpers(
       mergeablePR,
       unmergeablePR
     );
 
-    const mergeResultMessage = "foo";
     githubApiMocks.mockGetBranchRef.mockResolvedValue({ status: 404 });
-    gitCommandsMocks.mockMergeCommit.mockResolvedValue(mergeResultMessage);
-    gitCommandsMocks.mockShortStatDiff.mockResolvedValue({
+    gitCommandsMocks.mergeCommit.mockResolvedValue({} as any);
+    gitCommandsMocks.shortStatDiff.mockResolvedValue({
+      returnCode: 0,
       stdOutLines: []
     });
 

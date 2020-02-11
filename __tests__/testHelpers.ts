@@ -1,6 +1,7 @@
 import Github from "@octokit/rest";
 import _ from "lodash";
 import { createAssertions } from "./assertHelpers";
+import { gitCommandManager } from "../src/gitCommandManager";
 
 export const createMockGithubClient = () => ({
   issues: {
@@ -25,6 +26,10 @@ export const createPullRequest = (number: number, mergeable: boolean, labels: st
       sha: `commit-${number}`
     }
   } as unknown) as Github.PullsGetResponse);
+export const createMock = async <T>(importPath: string) => {
+  jest.mock(importPath);
+  return (await import(importPath)) as jest.Mocked<T>;
+};
 export function createGithubApiMocks() {
   const mockGetBranchRef = jest.fn();
   const mockCreateBranch = jest.fn();
@@ -38,57 +43,25 @@ export function createGithubApiMocks() {
   }));
   return { mockGetAllPaginatedItems, mockGetBranchRef, mockGetBranchCommit, mockCreateBranch };
 }
-export function createGitCommandsMocks() {
-  const mockStatus = jest.fn();
-  const mockResetHard = jest.fn();
-  const mockForcePush = jest.fn();
-  const mockMergeCommit = jest.fn().mockResolvedValue({});
-  const mockShortStatDiff = jest.fn();
-  const mockInit = jest.fn();
-  const mockRemoteAdd = jest.fn();
-  const mockFetch = jest.fn();
-  const mockCheckout = jest.fn();
-  const mockGitCommandManager = {
-    checkout: mockCheckout,
-    fetch: mockFetch,
-    init: mockInit,
-    status: mockStatus,
-    remoteAdd: mockRemoteAdd,
-    resetHard: mockResetHard,
-    forcePush: mockForcePush,
-    mergeCommit: mockMergeCommit,
-    shortStatDiff: mockShortStatDiff
-  };
-  mockShortStatDiff.mockResolvedValue({
+export async function createGitCommandsMocks() {
+  const { gitCommandManager } = await createMock<typeof import("../src/gitCommandManager")>(
+    "../src/gitCommandManager"
+  );
+  const mock = new gitCommandManager("", "", "") as jest.Mocked<gitCommandManager>;
+  mock.shortStatDiff.mockResolvedValue({
     returnCode: 0,
     stdOutLines: [" 1 file changed, 1 insertion(+), 1 deletion(-)"]
   });
-  jest.mock("../src/gitCommandManager", function() {
-    return {
-      gitCommandManager: function() {
-        return mockGitCommandManager;
-      }
-    };
-  });
-  return {
-    mockGitCommandManager,
-    mockCheckout,
-    mockFetch,
-    mockInit,
-    mockMergeCommit,
-    mockStatus,
-    mockRemoteAdd,
-    mockResetHard,
-    mockForcePush,
-    mockShortStatDiff
-  };
+  mock.mergeCommit.mockResolvedValue({} as any);
+
+  return mock;
 }
 const mockFs = (workingDirectory: string) => {
   jest.mock("fs", () => ({
     promises: { mkdtemp: jest.fn().mockResolvedValue(workingDirectory) }
   }));
 };
-export const createTestHelpers = (...mockPullRequests: Github.PullsGetResponse[]) => {
+export const createTestHelpers = async (...mockPullRequests: Github.PullsGetResponse[]) => {
   const owner = "owner";
   const repo = "repo";
   const targetBranch = "target-branch";
@@ -96,7 +69,7 @@ export const createTestHelpers = (...mockPullRequests: Github.PullsGetResponse[]
   const baseBranchCommit = "base-branch-commit";
   const workingDirectory = "working-dir";
   const githubApiMocks = createGithubApiMocks();
-  const gitCommandsMocks = createGitCommandsMocks();
+  const gitCommandsMocks = await createGitCommandsMocks();
   githubApiMocks.mockGetAllPaginatedItems.mockResolvedValue(mockPullRequests);
   const githubClient = createMockGithubClient();
   githubClient.pulls.get.mockImplementation(({ pull_number }) => ({
@@ -134,7 +107,7 @@ export const createTestHelpers = (...mockPullRequests: Github.PullsGetResponse[]
       const target = await import("../src/mergeDeployablePullRequests");
       await target.mergeDeployablePullRequests(
         githubClient as any,
-        gitCommandsMocks.mockGitCommandManager as any,
+        gitCommandsMocks,
         owner,
         repo,
         targetBranch,

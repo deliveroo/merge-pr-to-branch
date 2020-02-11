@@ -1,9 +1,6 @@
-import {
-  createMockGithubClient,
-  createGitCommandsMocks,
-  createGithubApiMocks
-} from "./testHelpers";
+import { createMockGithubClient, createGithubApiMocks } from "./testHelpers";
 import Github from "@octokit/rest";
+import { gitCommandManager } from "../src/gitCommandManager";
 
 function assertBranchCreated(
   mockCreateBranch: jest.Mock<any, any>,
@@ -22,19 +19,19 @@ function assertBranchCreated(
     baseBranch
   );
 }
-function assertGitStatus(mockStatus: jest.Mock<any, any>) {
+function assertGitStatus(mockStatus: jest.MockInstance<any, any>) {
   expect(mockStatus).toHaveBeenCalledTimes(1);
 }
-function assertCommitsMerged(mockMergeCommit: jest.Mock<any, any>, commits: string[]) {
+function assertCommitsMerged(mockMergeCommit: jest.MockInstance<any, any>, commits: string[]) {
   expect(mockMergeCommit).toHaveBeenCalledTimes(commits.length);
   commits.forEach(commit =>
     expect(mockMergeCommit).toHaveBeenCalledWith(commit, "merged by merge-pr-to-branch")
   );
 }
-function assertHardReset(mockResetHard: jest.Mock<any, any>, commit: string) {
+function assertHardReset(mockResetHard: jest.MockInstance<any, any>, commit: string) {
   expect(mockResetHard).toHaveBeenNthCalledWith(1, commit);
 }
-function assertForcePushed(mockForcePush: jest.Mock<any, any>, timesCalled = 1) {
+function assertForcePushed(mockForcePush: jest.MockInstance<any, any>, timesCalled = 1) {
   expect(mockForcePush).toHaveBeenCalledTimes(timesCalled);
 }
 function assertLabelRemoved(
@@ -79,7 +76,7 @@ export function createAssertions(
   githubClient: ReturnType<typeof createMockGithubClient>,
   owner: string,
   repo: string,
-  gitCommandsMocks: ReturnType<typeof createGitCommandsMocks>,
+  gitCommandsMocks: jest.Mocked<gitCommandManager>,
   targetBranch: string,
   githubApiMocks: ReturnType<typeof createGithubApiMocks>,
   baseBranch: string,
@@ -94,13 +91,13 @@ export function createAssertions(
       assertLabelAdded(githubClient, owner, repo, issue_number, label),
     labelRemoved: (issue_number: number, label: string) =>
       assertLabelRemoved(githubClient, owner, repo, issue_number, label),
-    gitStatus: () => assertGitStatus(gitCommandsMocks.mockStatus),
+    gitStatus: () => assertGitStatus(gitCommandsMocks.status),
     commitsMerged: (...commits: string[]) =>
-      assertCommitsMerged(gitCommandsMocks.mockMergeCommit, commits),
+      assertCommitsMerged(gitCommandsMocks.mergeCommit, commits),
     hardResetToBase: () =>
-      assertHardReset(gitCommandsMocks.mockResetHard, `${remoteName}/${baseBranch}`),
-    noForcePushed: () => assertForcePushed(gitCommandsMocks.mockForcePush, 0),
-    forcePushed: () => assertForcePushed(gitCommandsMocks.mockForcePush),
+      assertHardReset(gitCommandsMocks.resetHard, `${remoteName}/${baseBranch}`),
+    noForcePushed: () => assertForcePushed(gitCommandsMocks.forcePush, 0),
+    forcePushed: () => assertForcePushed(gitCommandsMocks.forcePush),
     targetBranchCreated: () =>
       assertBranchCreated(
         githubApiMocks.mockCreateBranch,
@@ -123,18 +120,18 @@ export function createAssertions(
     commentsAdded: (issue_number: number, comments: any[]) =>
       assertCommentsAdded(githubClient, owner, repo, issue_number, comments),
     gitWorkspace: () => {
-      expect(gitCommandsMocks.mockRemoteAdd).toHaveBeenCalledWith(
+      expect(gitCommandsMocks.remoteAdd).toHaveBeenCalledWith(
         remoteName,
         `https://github.com/${owner}/${repo}.git`
       );
-      expect(gitCommandsMocks.mockFetch).toHaveBeenCalledWith(
+      expect(gitCommandsMocks.fetch).toHaveBeenCalledWith(
         0,
         remoteName,
         baseBranch,
         targetBranch,
         ...prRefs
       );
-      expect(gitCommandsMocks.mockCheckout).toHaveBeenCalledWith(targetBranch);
+      expect(gitCommandsMocks.checkout).toHaveBeenCalledWith(targetBranch);
     }
   };
 }
