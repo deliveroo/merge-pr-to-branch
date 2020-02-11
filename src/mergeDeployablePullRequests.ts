@@ -2,12 +2,7 @@ import { info, warning } from "@actions/core";
 import Github from "@octokit/rest";
 import { gitCommandManager } from "./gitCommandManager";
 import { serializeError } from "serialize-error";
-import {
-  getAllPaginatedItems,
-  getBranchFromRef,
-  getBranchRef,
-  createBranch
-} from "./githubApiHelpers";
+import { getBranchFromRef } from "./githubApiHelpers";
 import {
   createCommentMessage,
   isPullRequestEvent,
@@ -16,34 +11,28 @@ import {
   githubContext,
   createCommitMessage
 } from "./githubActionHelpers";
+import { githubApiManager } from "./githubApiManager";
 
 const requestDeploymentLabel = "deploy";
 const deployedLabel = "deployed";
 
 export const mergeDeployablePullRequests = async (
-  githubClient: Github,
+  github: githubApiManager,
   git: gitCommandManager,
-  owner: string,
-  repo: string,
   targetBranch: string,
   baseBranch: string
 ) => {
-  const mergeablePullRequests = await getMergablePullRequests(
-    githubClient,
-    owner,
-    repo,
-    baseBranch,
-    targetBranch
-  );
+  const mergeablePullRequests = await getMergablePullRequests(github, baseBranch, targetBranch);
   const prRefs = mergeablePullRequests.map(p => p.data.head.ref);
   const remoteName = "origin";
   const remoteBaseBranch = `${remoteName}/${baseBranch}`;
   const remoteTargetBranch = `${remoteName}/${targetBranch}`;
-  const targetRef = await getBranchRef(githubClient, owner, repo, targetBranch);
+  const targetRef = await github.getBranchRef(targetBranch);
   if (!("data" in targetRef)) {
-    await createBranch(githubClient, owner, repo, targetBranch, baseBranch);
+    await github.createBranch(targetBranch, baseBranch);
   }
-  await git.remoteAdd(remoteName, `https://github.com/${owner}/${repo}.git`);
+  const remoteUrl = github.getRemoteUrl();
+  await git.remoteAdd(remoteName, remoteUrl);
   await git.fetch(0, remoteName, baseBranch, targetBranch, ...prRefs);
   await git.checkout(targetBranch);
   await git.status();
@@ -61,7 +50,7 @@ export const mergeDeployablePullRequests = async (
     )}`
   );
   await git.forcePush();
-  await processMergeResults(mergeResults, githubClient, owner, repo);
+  await processMergeResults(mergeResults, github);
 };
 
 type ExtractPromiseResolveValue<T> = T extends Promise<infer U> ? U : never;
@@ -71,9 +60,7 @@ export type mergePullRequestsResult = ExtractPromiseResolveValue<
 
 const processMergeResults = async (
   mergeResults: mergePullRequestsResult,
-  githubClient: Github,
-  owner: string,
-  repo: string
+  github: githubApiManager
 ) =>
   await Promise.all(
     mergeResults.map(
@@ -85,59 +72,34 @@ const processMergeResults = async (
       }) => {
         if ("errorMessage" in rest) {
           const { errorMessage } = rest;
-          await githubClient.issues.removeLabel({
-            owner,
-            repo,
-            issue_number: number,
-            name: requestDeploymentLabel
-          });
-          await createPullRequestComment(githubClient, owner, repo, number, errorMessage);
+          await github.removeIssueLabel(number, requestDeploymentLabel);
+          await github.createIssueComment(number, createCommentMessage(errorMessage));
         }
         if (hasLabel(labels, deployedLabel)) {
-          await githubClient.issues.removeLabel({
-            owner,
-            repo,
-            issue_number: number,
-            name: deployedLabel
-          });
+          await github.removeIssueLabel(number, deployedLabel);
         } else if ("message" in rest) {
           if (!hasLabel(labels, deployedLabel)) {
             const { message } = rest;
-            await createPullRequestComment(githubClient, owner, repo, number, message);
-            await githubClient.issues.addLabels({
-              owner,
-              repo,
-              issue_number: number,
-              labels: [deployedLabel]
-            });
+            await github.createIssueComment(number, createCommentMessage(message));
+            await github.addIssueLabels(number, deployedLabel);
           }
         }
       }
     )
   );
 const getMergablePullRequests = async (
-  githubClient: Github,
-  owner: string,
-  repo: string,
+  github: githubApiManager,
   baseBranch: string,
   targetBranch: string
 ) => {
-  const listOptions: Github.PullsListParams = {
-    owner,
-    repo,
+  const options: Parameters<githubApiManager["getAllPullRequests"]>[0] = {
     base: baseBranch,
     sort: "created",
     direction: "asc",
     state: "open"
   };
-  const pullRequestList = await getAllPaginatedItems(
-    githubClient,
-    githubClient.pulls.list,
-    listOptions
-  );
-  info(
-    `Found ${pullRequestList.length} ${listOptions.state} pull requests against '${listOptions.base}'.`
-  );
+  const pullRequestList = await github.getAllPullRequests(options);
+  info(`Found ${pullRequestList.length} ${options.state} pull requests against '${options.base}'.`);
   const prsToRemove: { reason: string; pull_number: number }[] = [];
   const labeledPullRequests = pullRequestList.filter(p => {
     const include = hasLabel(p.labels, requestDeploymentLabel);
@@ -155,15 +117,7 @@ const getMergablePullRequests = async (
     `Found ${labeledPullRequests.length} pull requests labeled with '${requestDeploymentLabel}'.`
   );
   const mergeablePullRequests = (
-    await Promise.all(
-      labeledPullRequests.map(p =>
-        githubClient.pulls.get({
-          owner,
-          repo,
-          pull_number: p.number
-        })
-      )
-    )
+    await Promise.all(labeledPullRequests.map(p => github.getPullRequest(p.number)))
   ).filter(({ data: { labels, number, mergeable } }) => {
     if (mergeable) {
       info(`found mergeable pull request #${number}.`);
@@ -182,16 +136,9 @@ const getMergablePullRequests = async (
   await Promise.all(
     prsToRemove.map(
       async p =>
-        await githubClient.issues
-          .removeLabel({
-            owner,
-            repo,
-            issue_number: p.pull_number,
-            name: deployedLabel
-          })
-          .then(async () => {
-            await createPullRequestComment(githubClient, owner, repo, p.pull_number, p.reason);
-          })
+        await github.removeIssueLabel(p.pull_number, deployedLabel).then(async () => {
+          await github.createIssueComment(p.pull_number, createCommentMessage(p.reason));
+        })
     )
   );
   return mergeablePullRequests;
@@ -219,20 +166,6 @@ async function mergePullRequests(
     )
   );
 }
-
-const createPullRequestComment = async (
-  githubClient: Github,
-  owner: string,
-  repo: string,
-  pull_number: number,
-  comment: string
-) =>
-  githubClient.issues.createComment({
-    owner,
-    repo,
-    issue_number: pull_number,
-    body: createCommentMessage(comment)
-  });
 
 export const getBaseBranch = (context: githubContext, payload: githubPayload) => {
   if (isPullRequestEvent(context, payload)) {

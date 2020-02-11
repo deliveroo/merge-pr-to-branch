@@ -1,19 +1,15 @@
 import Github from "@octokit/rest";
 import _ from "lodash";
 import { createAssertions } from "./assertHelpers";
+import { githubApiManager } from "../src/githubApiManager";
 import { gitCommandManager } from "../src/gitCommandManager";
 
-export const createMockGithubClient = () => ({
-  issues: {
-    addLabels: jest.fn(),
-    removeLabel: jest.fn(),
-    createComment: jest.fn()
-  },
-  pulls: {
-    get: jest.fn(),
-    list: {}
-  }
-});
+export const createMockGithubApiManager = async () => {
+  const { githubApiManager } = await createMock<typeof import("../src/githubApiManager")>(
+    "../src/githubApiManager"
+  );
+  return new githubApiManager({} as any, "", "") as jest.Mocked<githubApiManager>;
+};
 export const createPullRequest = (number: number, mergeable: boolean, labels: string[]) =>
   (({
     number,
@@ -30,19 +26,6 @@ export const createMock = async <T>(importPath: string) => {
   jest.mock(importPath);
   return (await import(importPath)) as jest.Mocked<T>;
 };
-export function createGithubApiMocks() {
-  const mockGetBranchRef = jest.fn();
-  const mockCreateBranch = jest.fn();
-  const mockGetBranchCommit = jest.fn();
-  const mockGetAllPaginatedItems = jest.fn();
-  jest.mock("../src/githubApiHelpers", () => ({
-    getBranchRef: mockGetBranchRef,
-    createBranch: mockCreateBranch,
-    getBranchCommit: mockGetBranchCommit,
-    getAllPaginatedItems: mockGetAllPaginatedItems
-  }));
-  return { mockGetAllPaginatedItems, mockGetBranchRef, mockGetBranchCommit, mockCreateBranch };
-}
 export async function createGitCommandsMocks() {
   const { gitCommandManager } = await createMock<typeof import("../src/gitCommandManager")>(
     "../src/gitCommandManager"
@@ -68,19 +51,20 @@ export const createTestHelpers = async (...mockPullRequests: Github.PullsGetResp
   const baseBranch = "base-branch";
   const baseBranchCommit = "base-branch-commit";
   const workingDirectory = "working-dir";
-  const githubApiMocks = createGithubApiMocks();
   const gitCommandsMocks = await createGitCommandsMocks();
-  githubApiMocks.mockGetAllPaginatedItems.mockResolvedValue(mockPullRequests);
-  const githubClient = createMockGithubClient();
-  githubClient.pulls.get.mockImplementation(({ pull_number }) => ({
-    data: _.find(mockPullRequests, x => x.number === pull_number)
-  }));
+  const github = await createMockGithubApiManager();
+  github.getAllPullRequests.mockResolvedValue(mockPullRequests);
+  github.getPullRequest.mockImplementation(pull_number =>
+    Promise.resolve({
+      data: _.find(mockPullRequests, x => x.number === pull_number)
+    } as any)
+  );
   mockFs(workingDirectory);
-  githubApiMocks.mockGetBranchRef.mockResolvedValue({ status: 200 });
-  githubApiMocks.mockGetBranchCommit.mockResolvedValue(baseBranchCommit);
-  githubClient.issues.addLabels.mockResolvedValue({});
-  githubClient.issues.removeLabel.mockResolvedValue({});
-  githubClient.issues.createComment.mockResolvedValue({});
+  github.getBranchRef.mockResolvedValue({ status: 200 });
+  github.getBranchCommit.mockResolvedValue(baseBranchCommit);
+  github.addIssueLabels.mockResolvedValue({} as any);
+  github.removeIssueLabel.mockResolvedValue({} as any);
+  github.createIssueComment.mockResolvedValue({} as any);
   return {
     testData: {
       owner,
@@ -90,29 +74,12 @@ export const createTestHelpers = async (...mockPullRequests: Github.PullsGetResp
       targetBranch,
       workingDirectory
     },
-    githubClient,
-    githubApiMocks,
+    github,
     gitCommandsMocks,
-    assert: createAssertions(
-      githubClient,
-      owner,
-      repo,
-      gitCommandsMocks,
-      targetBranch,
-      githubApiMocks,
-      baseBranch,
-      mockPullRequests
-    ),
+    assert: createAssertions(github, gitCommandsMocks, targetBranch, baseBranch, mockPullRequests),
     runTest: async () => {
       const target = await import("../src/mergeDeployablePullRequests");
-      await target.mergeDeployablePullRequests(
-        githubClient as any,
-        gitCommandsMocks,
-        owner,
-        repo,
-        targetBranch,
-        baseBranch
-      );
+      await target.mergeDeployablePullRequests(github, gitCommandsMocks, targetBranch, baseBranch);
     }
   };
 };

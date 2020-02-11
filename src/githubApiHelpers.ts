@@ -2,7 +2,7 @@ import Github from "@octokit/rest";
 import _ from "lodash";
 
 export const getBranchFromRef = (ref: string) => _.last(_.split(ref, "/"));
-const formatHeadFromBranch = (branch: string) => `heads/${branch}`;
+export const formatHeadFromBranch = (branch: string) => `heads/${branch}`;
 const formatRefFromBranch = (branch: string) => `refs/${formatHeadFromBranch(branch)}`;
 
 export const createGithubClient = (auth: Github.Options["auth"]) => {
