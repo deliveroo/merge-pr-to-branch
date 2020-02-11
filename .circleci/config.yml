@@ -1,0 +1,36 @@
+version: 2
+
+jobs:
+  build:
+    docker:
+      - image: deliveroo/circleci:0.2.3
+
+    environment:
+      - TARGET: platform
+
+    steps:
+      - setup_remote_docker:
+          version: 18.06.0-ce
+
+      - checkout
+
+      - run:
+        name: npm install
+        command: |
+          npm install
+
+      - run:
+        name: build
+        command: |
+          npm run build
+
+      - run:
+        name: test
+        command: |
+          npm test
+
+workflows:
+  version: 2
+  build:
+    jobs:
+      - build
