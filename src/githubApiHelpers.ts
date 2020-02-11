@@ -44,17 +44,12 @@ export const createBranch = async (
     throw new Error(`sourceBranch: '${sourceBranch}' not found.`);
   }
   const { sha } = sourceRef.data.object;
-  const createRefResult = await githubClient.git.createRef({
+  return githubClient.git.createRef({
     owner,
     repo,
     ref: formatRefFromBranch(branch),
     sha
   });
-  if (createRefResult.status !== 200) {
-    throw new Error(
-      `Failed to create branch: '${branch}'\n${JSON.stringify(createRefResult.data)}.`
-    );
-  }
 };
 
 type ExtractGithubResponseDataType<T> = T extends {
