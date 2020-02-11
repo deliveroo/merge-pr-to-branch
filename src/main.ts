@@ -1,14 +1,14 @@
 import { getInput, info, setFailed } from "@actions/core";
 import { context } from "@actions/github";
 import { serializeError } from "serialize-error";
-import { createGithubClient } from "./githubApiHelpers";
 import { mergeDeployablePullRequests, getBaseBranch } from "./mergeDeployablePullRequests";
 import { gitCommandManager } from "./gitCommandManager";
 import { promises } from "fs";
+import { githubApiManager } from "./githubApiManager";
 const { mkdtemp } = promises;
 
 const targetBranchInputName = "target-branch";
-async function run() {
+export async function run() {
   try {
     const targetBranch = getInput(targetBranchInputName);
     if (!targetBranch) {
@@ -39,13 +39,13 @@ async function run() {
     if (!user) {
       throw new Error("Missing GITHUB_ACTOR environment variable");
     }
-    const githubClient = createGithubClient(token);
+    const github = new githubApiManager(token, owner, repo);
     const workingDirectory = await mkdtemp("git-workspace");
     const git = new gitCommandManager(workingDirectory, user, token);
     await git.init();
     await git.config("user.email", "action@github.com");
     await git.config("user.name", "GitHub Action");
-    await mergeDeployablePullRequests(githubClient, git, owner, repo, targetBranch, baseBranch);
+    await mergeDeployablePullRequests(github, git, targetBranch, baseBranch);
   } catch (error) {
     setFailed(JSON.stringify(serializeError(error)));
   }
