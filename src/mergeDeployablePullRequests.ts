@@ -12,6 +12,7 @@ import {
   createCommitMessage
 } from "./githubActionHelpers";
 import { githubApiManager } from "./githubApiManager";
+import { ExtractPromiseResolveValue } from "./types";
 
 const requestDeploymentLabel = "deploy";
 const deployedLabel = "deployed";
@@ -56,7 +57,6 @@ export const mergeDeployablePullRequests = async (
   await processMergeResults(mergeResults, github);
 };
 
-type ExtractPromiseResolveValue<T> = T extends Promise<infer U> ? U : never;
 export type mergePullRequestsResult = ExtractPromiseResolveValue<
   ReturnType<typeof mergePullRequests>
 >;
@@ -146,28 +146,38 @@ const getMergablePullRequests = async (
   );
   return mergeablePullRequests;
 };
+async function mergePullRequest(
+  git: gitCommandManager,
+  pullRequest: Github.Response<Github.PullsGetResponse>,
+  targetBranch: string
+): Promise<
+  { pullRequest: Github.Response<Github.PullsGetResponse> } & (
+    | { message: string }
+    | { errorMessage: string }
+  )
+> {
+  try {
+    const message = await mergeCommit(git, targetBranch, pullRequest.data.head.sha);
+    return { pullRequest, message };
+  } catch (error) {
+    const errorMessage = `Skipped PR due to merge error: \n${JSON.stringify(
+      serializeError(error)
+    )}`;
+    warning(errorMessage);
+    return { pullRequest, errorMessage };
+  }
+}
 
 async function mergePullRequests(
   git: gitCommandManager,
   pullRequests: Github.Response<Github.PullsGetResponse>[],
   targetBranch: string
 ) {
-  return await Promise.all(
-    pullRequests.map(async pullRequest =>
-      mergeCommit(git, targetBranch, pullRequest.data.head.sha).then(
-        async message => {
-          return { pullRequest, message };
-        },
-        async error => {
-          const errorMessage = `Skipped PR due to merge error: \n${JSON.stringify(
-            serializeError(error)
-          )}`;
-          warning(errorMessage);
-          return { pullRequest, errorMessage };
-        }
-      )
-    )
-  );
+  const results: ExtractPromiseResolveValue<ReturnType<typeof mergePullRequest>>[] = [];
+  for (const pullRequest of pullRequests) {
+    await mergePullRequest(git, pullRequest, targetBranch).then(result => results.push(result));
+  }
+  return results;
 }
 
 export const getBaseBranch = (context: githubContext, payload: githubPayload) => {
