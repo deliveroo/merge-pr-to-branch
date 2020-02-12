@@ -46,7 +46,6 @@ export function createAssertions(
   baseBranch: string,
   mockPullRequests: Github.PullsGetResponse[]
 ) {
-  const remoteName = "origin";
   const prRefs = mockPullRequests.filter(p => p.mergeable).map(p => p.head.ref);
   return {
     noLabelsAdded: () => assertNoLabelsAdded(githubClient),
@@ -58,8 +57,7 @@ export function createAssertions(
     gitStatus: () => expect(gitCommandsMocks.status).toHaveBeenCalledTimes(1),
     commitsMerged: (...commits: string[]) =>
       assertCommitsMerged(gitCommandsMocks.mergeCommit, commits),
-    hardResetToBase: () =>
-      assertHardReset(gitCommandsMocks.resetHard, `${remoteName}/${baseBranch}`),
+    hardResetToBase: () => assertHardReset(gitCommandsMocks.resetHardToRemote, baseBranch),
     noForcePushed: () => assertForcePushed(gitCommandsMocks.forcePush, 0),
     forcePushed: () => assertForcePushed(gitCommandsMocks.forcePush),
     targetBranchCreated: () => assertBranchCreated(githubClient, targetBranch, baseBranch),
@@ -73,17 +71,8 @@ export function createAssertions(
       expect(gitCommandsMocks.config).toBeCalledTimes(2);
       expect(gitCommandsMocks.config.mock.calls[0]).toEqual(["user.email", "action@github.com"]);
       expect(gitCommandsMocks.config.mock.calls[1]).toEqual(["user.name", "GitHub Action"]);
-      expect(gitCommandsMocks.remoteAdd).toHaveBeenCalledWith(
-        remoteName,
-        githubClient.getRemoteUrl()
-      );
-      expect(gitCommandsMocks.fetch).toHaveBeenCalledWith(
-        0,
-        remoteName,
-        baseBranch,
-        targetBranch,
-        ...prRefs
-      );
+      expect(gitCommandsMocks.remoteAdd).toHaveBeenCalledWith(githubClient.getRemoteUrl());
+      expect(gitCommandsMocks.fetch).toHaveBeenCalledWith(0, baseBranch, targetBranch, ...prRefs);
       expect(gitCommandsMocks.checkout).toHaveBeenCalledWith(targetBranch);
     }
   };

@@ -31,7 +31,7 @@ export async function createGitCommandsMocks() {
     "../src/gitCommandManager"
   );
   const mock = new gitCommandManager("", "", "") as jest.Mocked<gitCommandManager>;
-  mock.shortStatDiff.mockResolvedValue({
+  mock.shortStatDiffWithRemote.mockResolvedValue({
     returnCode: 0,
     stdOutLines: [" 1 file changed, 1 insertion(+), 1 deletion(-)"]
   });
