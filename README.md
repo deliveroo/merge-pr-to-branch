@@ -28,7 +28,7 @@ jobs:
         - uses: actions/checkout@v2
           with:
             ref: master
-        - uses: deliveroo/merge-pr-to-branch@v1
+        - uses: deliveroo/merge-pr-to-branch@latest
 ```
 
 ## Use the action
