@@ -7,7 +7,7 @@ import {
   getAllPaginatedItems,
   createGithubClient
 } from "./githubApiHelpers";
-export class githubApiManager {
+export class GithubApiManager {
   constructor(
     auth: Parameters<typeof createGithubClient>[0],
     private readonly owner: string,

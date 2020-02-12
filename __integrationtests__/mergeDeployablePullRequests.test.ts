@@ -1,13 +1,14 @@
 import { mergeDeployablePullRequests } from "../src/mergeDeployablePullRequests";
-import { gitCommandManager } from "../src/gitCommandManager";
+import { GitCommandManager } from "../src/gitCommandManager";
 import { mkdtempSync } from "fs";
-import { githubApiManager } from "../src/githubApiManager";
+import { GithubApiManager } from "../src/githubApiManager";
 
 describe("mergeDeployablePullRequests", () => {
   it("intergration test", async () => {
     const targetBranch = "integration-tests";
     const { github, git } = setup();
     await mergeDeployablePullRequests(github, git, targetBranch, "master");
+    expect(true).toBe(true);
   }, 100000);
 });
 
@@ -22,8 +23,8 @@ const setup = () => {
     on2fa: () => Promise.reject("2fa is unsupported")
   };
 
-  const github = new githubApiManager(auth, "deliveroo", "dev-glue");
+  const github = new GithubApiManager(auth, "deliveroo", "dev-glue");
   const workingDirectory = mkdtempSync("git-workspace");
-  const git = new gitCommandManager(workingDirectory, GITHUB_USER, GITHUB_PAT);
+  const git = new GitCommandManager(workingDirectory, GITHUB_USER, GITHUB_PAT);
   return { git, github };
 };

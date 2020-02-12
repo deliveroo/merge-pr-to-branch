@@ -1,4 +1,3 @@
-import _ from "lodash";
 import { createPullRequest, createTestHelpers } from "./testHelpers";
 import { hasLabel } from "../src/mergeDeployablePullRequests";
 

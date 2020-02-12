@@ -2,7 +2,7 @@ import { execCmd } from "./githubActionHelpers";
 
 const _remoteName = "origin";
 
-export class gitCommandManager {
+export class GitCommandManager {
   public constructor(
     private readonly workingDirectory: string,
     private readonly user: string,

@@ -12,13 +12,13 @@ describe("main", () => {
       "@actions/core"
     );
     const actions_github = await createMock<typeof import("@actions/github")>("@actions/github");
-    const { githubApiManager } = await createMock<typeof import("../src/githubApiManager")>(
+    const { GithubApiManager } = await createMock<typeof import("../src/githubApiManager")>(
       "../src/githubApiManager"
     );
     const { mergeDeployablePullRequests, getBaseBranch } = await createMock<
       typeof import("../src/mergeDeployablePullRequests")
     >("../src/mergeDeployablePullRequests");
-    const { gitCommandManager } = await createMock<typeof import("../src/gitCommandManager")>(
+    const { GitCommandManager } = await createMock<typeof import("../src/gitCommandManager")>(
       "../src/gitCommandManager"
     );
     const { acquireLock, removeLock } = await createMock<typeof import("../src/acquireLock")>(
@@ -57,8 +57,8 @@ describe("main", () => {
     await run();
 
     // assert
-    expect(githubApiManager).toHaveBeenCalledTimes(1);
-    expect(githubApiManager.mock.calls).toMatchInlineSnapshot(`
+    expect(GithubApiManager).toHaveBeenCalledTimes(1);
+    expect(GithubApiManager.mock.calls).toMatchInlineSnapshot(`
       Array [
         Array [
           "repo-token-value",
@@ -67,8 +67,8 @@ describe("main", () => {
         ],
       ]
     `);
-    expect(gitCommandManager).toHaveBeenCalledTimes(1);
-    expect(gitCommandManager.mock.calls).toMatchInlineSnapshot(`
+    expect(GitCommandManager).toHaveBeenCalledTimes(1);
+    expect(GitCommandManager.mock.calls).toMatchInlineSnapshot(`
       Array [
         Array [
           "temp_dir",

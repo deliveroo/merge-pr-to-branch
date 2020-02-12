@@ -1,14 +1,14 @@
 import Github from "@octokit/rest";
 import _ from "lodash";
 import { createAssertions } from "./assertHelpers";
-import { githubApiManager } from "../src/githubApiManager";
-import { gitCommandManager } from "../src/gitCommandManager";
 
 export const createMockGithubApiManager = async () => {
-  const { githubApiManager } = await createMock<typeof import("../src/githubApiManager")>(
-    "../src/githubApiManager"
+  const { GithubApiManager } = await createMock<typeof import("../src/GithubApiManager")>(
+    "../src/GithubApiManager"
   );
-  return new githubApiManager({} as any, "", "") as jest.Mocked<githubApiManager>;
+  return new GithubApiManager({} as any, "", "") as jest.Mocked<
+    import("../src/GithubApiManager").GithubApiManager
+  >;
 };
 export const createPullRequest = (number: number, mergeable: boolean, labels: string[]) =>
   (({
@@ -27,10 +27,12 @@ export const createMock = async <T>(importPath: string) => {
   return (await import(importPath)) as jest.Mocked<T>;
 };
 export async function createGitCommandsMocks() {
-  const { gitCommandManager } = await createMock<typeof import("../src/gitCommandManager")>(
-    "../src/gitCommandManager"
+  const { GitCommandManager } = await createMock<typeof import("../src/GitCommandManager")>(
+    "../src/GitCommandManager"
   );
-  const mock = new gitCommandManager("", "", "") as jest.Mocked<gitCommandManager>;
+  const mock = new GitCommandManager("", "", "") as jest.Mocked<
+    import("../src/GitCommandManager").GitCommandManager
+  >;
   mock.shortStatDiffWithRemote.mockResolvedValue({
     returnCode: 0,
     stdOutLines: [" 1 file changed, 1 insertion(+), 1 deletion(-)"]

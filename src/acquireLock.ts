@@ -1,7 +1,7 @@
-import { githubApiManager } from "./githubApiManager";
+import { GithubApiManager } from "./githubApiManager";
 import { info } from "@actions/core";
 export const acquireLock = async (
-  github: githubApiManager,
+  github: GithubApiManager,
   lockBranchName: string,
   baseBranch: string
 ) => {
@@ -17,7 +17,7 @@ export const acquireLock = async (
   }
   return result;
 };
-export const removeLock = async (github: githubApiManager, lockBranchName: string) => {
+export const removeLock = async (github: GithubApiManager, lockBranchName: string) => {
   info("Removing lock...");
   await github.deleteBranch(lockBranchName).then(
     () => undefined,

@@ -1,9 +1,9 @@
 import { getInput, info, setFailed } from "@actions/core";
 import { context } from "@actions/github";
 import { serializeError } from "serialize-error";
-import { githubApiManager } from "./githubApiManager";
+import { GithubApiManager } from "./githubApiManager";
 import { mergeDeployablePullRequests, getBaseBranch } from "./mergeDeployablePullRequests";
-import { gitCommandManager } from "./gitCommandManager";
+import { GitCommandManager } from "./gitCommandManager";
 import { promises } from "fs";
 import { acquireLock, removeLock } from "./acquireLock";
 const { mkdtemp } = promises;
@@ -42,14 +42,14 @@ export async function run() {
     if (!user) {
       throw new Error("Missing GITHUB_ACTOR environment variable");
     }
-    const github = new githubApiManager(token, owner, repo);
+    const github = new GithubApiManager(token, owner, repo);
     const lockBranchName = getInput(lockBranchNameInputName);
     const lockCheckIntervalInMs = Number(getInput(lockCheckIntervalInputName));
     while (!(await acquireLock(github, lockBranchName, baseBranch))) {
       await new Promise(resolve => setTimeout(resolve, lockCheckIntervalInMs));
     }
     const workingDirectory = await mkdtemp("git-workspace");
-    const git = new gitCommandManager(workingDirectory, user, token);
+    const git = new GitCommandManager(workingDirectory, user, token);
     await mergeDeployablePullRequests(github, git, targetBranch, baseBranch);
     await removeLock(github, lockBranchName);
   } catch (error) {
