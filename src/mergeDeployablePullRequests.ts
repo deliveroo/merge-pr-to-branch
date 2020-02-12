@@ -11,7 +11,7 @@ import {
   githubContext,
   createCommitMessage
 } from "./githubActionHelpers";
-import { GithubApiManager } from "./githubApiManager";
+import { GithubApiManager } from "./GithubApiManager";
 import { ExtractPromiseResolveValue } from "./types";
 
 const requestDeploymentLabel = "deploy";

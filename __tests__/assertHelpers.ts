@@ -1,6 +1,6 @@
 import Github from "@octokit/rest";
-import { GithubApiManager } from "../src/githubApiManager";
-import { GitCommandManager } from "../src/gitCommandManager";
+import { GithubApiManager } from "../src/GithubApiManager";
+import { GitCommandManager } from "../src/GitCommandManager";
 
 function assertBranchCreated(
   githubClient: jest.Mocked<GithubApiManager>,

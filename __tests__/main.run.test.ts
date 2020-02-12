@@ -12,14 +12,14 @@ describe("main", () => {
       "@actions/core"
     );
     const actions_github = await createMock<typeof import("@actions/github")>("@actions/github");
-    const { GithubApiManager } = await createMock<typeof import("../src/githubApiManager")>(
-      "../src/githubApiManager"
+    const { GithubApiManager } = await createMock<typeof import("../src/GithubApiManager")>(
+      "../src/GithubApiManager"
     );
     const { mergeDeployablePullRequests, getBaseBranch } = await createMock<
       typeof import("../src/mergeDeployablePullRequests")
     >("../src/mergeDeployablePullRequests");
-    const { GitCommandManager } = await createMock<typeof import("../src/gitCommandManager")>(
-      "../src/gitCommandManager"
+    const { GitCommandManager } = await createMock<typeof import("../src/GitCommandManager")>(
+      "../src/GitCommandManager"
     );
     const { acquireLock, removeLock } = await createMock<typeof import("../src/acquireLock")>(
       "../src/acquireLock"

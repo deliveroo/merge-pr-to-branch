@@ -1,9 +1,9 @@
 import { getInput, info, setFailed } from "@actions/core";
 import { context } from "@actions/github";
 import { serializeError } from "serialize-error";
-import { GithubApiManager } from "./githubApiManager";
+import { GithubApiManager } from "./GithubApiManager";
 import { mergeDeployablePullRequests, getBaseBranch } from "./mergeDeployablePullRequests";
-import { GitCommandManager } from "./gitCommandManager";
+import { GitCommandManager } from "./GitCommandManager";
 import { promises } from "fs";
 import { acquireLock, removeLock } from "./acquireLock";
 const { mkdtemp } = promises;

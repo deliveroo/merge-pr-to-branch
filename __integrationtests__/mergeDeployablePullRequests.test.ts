@@ -1,7 +1,7 @@
 import { mergeDeployablePullRequests } from "../src/mergeDeployablePullRequests";
-import { GitCommandManager } from "../src/gitCommandManager";
+import { GitCommandManager } from "../src/GitCommandManager";
 import { mkdtempSync } from "fs";
-import { GithubApiManager } from "../src/githubApiManager";
+import { GithubApiManager } from "../src/GithubApiManager";
 
 describe("mergeDeployablePullRequests", () => {
   it("intergration test", async () => {

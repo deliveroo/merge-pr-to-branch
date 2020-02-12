@@ -1,4 +1,4 @@
-import { GithubApiManager } from "./githubApiManager";
+import { GithubApiManager } from "./GithubApiManager";
 import { info } from "@actions/core";
 export const acquireLock = async (
   github: GithubApiManager,
