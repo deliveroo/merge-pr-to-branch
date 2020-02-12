@@ -100,7 +100,7 @@ describe("mergeDeployablePullRequests", () => {
 
     github.getBranchRef.mockResolvedValue({ status: 404 });
     gitCommandsMocks.mergeCommit.mockResolvedValue({} as any);
-    gitCommandsMocks.shortStatDiff.mockResolvedValue({
+    gitCommandsMocks.shortStatDiffWithRemote.mockResolvedValue({
       returnCode: 0,
       stdOutLines: []
     });

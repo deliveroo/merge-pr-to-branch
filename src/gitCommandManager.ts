@@ -1,5 +1,7 @@
 import { execCmd } from "./githubActionHelpers";
 
+const _remoteName = "origin";
+
 export class gitCommandManager {
   public constructor(
     private readonly workingDirectory: string,
@@ -9,8 +11,8 @@ export class gitCommandManager {
   public mergeCommit(commit: string, message: string) {
     return this.execGit(`git merge ${commit} --commit -m "${message}"`);
   }
-  public resetHard(sha: string) {
-    return this.execGit(`git reset --hard ${sha}`);
+  public resetHardToRemote(branchName: string) {
+    return this.execGit(`git reset --hard ${_remoteName}/${branchName}`);
   }
   public status() {
     return this.execGit("git status");
@@ -20,23 +22,27 @@ export class gitCommandManager {
   }
   public fetch(depth = 0, ...refs: string[]) {
     return this.execGit(
-      `git fetch ${depth ? `--depth=${depth}` : ""} --no-tags --prune ${refs.join(" ")}`
+      `git fetch ${depth ? `--depth=${depth}` : ""} --no-tags --prune ${_remoteName} ${refs.join(
+        " "
+      )}`
     );
   }
   public checkout(branch: string) {
     return this.execGit(`git checkout ${branch}`);
   }
-  public shortStatDiff(branch1: string, branch2: string) {
-    return this.execGit(`git diff ${branch1} ${branch2} --shortstat`, { includeStdOut: true });
+  public shortStatDiffWithRemote(branch: string) {
+    return this.execGit(`git diff ${branch} ${_remoteName}/${branch} --shortstat`, {
+      includeStdOut: true
+    });
   }
   public init() {
     return this.execGit("git init");
   }
-  public remoteAdd(remote: string, url: string) {
+  public remoteAdd(url: string, remoteName = _remoteName) {
     const remoteUrl = new URL(url);
     remoteUrl.username = this.user;
     remoteUrl.password = this.token;
-    return this.execGit(`git remote add ${remote} ${remoteUrl.toJSON()}`);
+    return this.execGit(`git remote add ${remoteName} ${remoteUrl.toJSON()}`);
   }
   public config(key: string, value: string) {
     return this.execGit(`git config ${key} ${value}`);

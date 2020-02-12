@@ -25,9 +25,6 @@ export const mergeDeployablePullRequests = async (
 ) => {
   const mergeablePullRequests = await getMergablePullRequests(github, baseBranch, targetBranch);
   const prRefs = mergeablePullRequests.map(p => p.data.head.ref);
-  const remoteName = "origin";
-  const remoteBaseBranch = `${remoteName}/${baseBranch}`;
-  const remoteTargetBranch = `${remoteName}/${targetBranch}`;
   const targetRef = await github.getBranchRef(targetBranch);
   if (!("data" in targetRef)) {
     await github.createBranch(targetBranch, baseBranch);
@@ -36,20 +33,20 @@ export const mergeDeployablePullRequests = async (
   await git.config("user.email", "action@github.com");
   await git.config("user.name", "GitHub Action");
   const remoteUrl = github.getRemoteUrl();
-  await git.remoteAdd(remoteName, remoteUrl);
-  await git.fetch(0, remoteName, baseBranch, targetBranch, ...prRefs);
+  await git.remoteAdd(remoteUrl);
+  await git.fetch(0, baseBranch, targetBranch, ...prRefs);
   await git.checkout(targetBranch);
   await git.status();
-  await git.resetHard(remoteBaseBranch);
+  await git.resetHardToRemote(baseBranch);
   const mergeResults = await mergePullRequests(git, mergeablePullRequests, targetBranch);
-  const diffResults = await git.shortStatDiff(remoteTargetBranch, targetBranch);
+  const diffResults = await git.shortStatDiffWithRemote(targetBranch);
   if (diffResults.stdOutLines.length === 0) {
-    info(`No difference between ${targetBranch} and ${remoteTargetBranch}. Skipping push.`);
-    git.resetHard(remoteTargetBranch);
+    info(`No difference between local and remote. Skipping push.`);
+    git.resetHardToRemote(targetBranch);
     return;
   }
   info(
-    `Pushing local branch as differences found between ${targetBranch} and ${remoteTargetBranch}:\n${diffResults.stdOutLines.join(
+    `Pushing local branch as differences found between local and remote:\n${diffResults.stdOutLines.join(
       "\n"
     )}`
   );
