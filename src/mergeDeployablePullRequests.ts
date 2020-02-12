@@ -12,7 +12,6 @@ import {
   createCommitMessage
 } from "./githubActionHelpers";
 import { GithubApiManager } from "./GithubApiManager";
-import { ExtractPromiseResolveValue } from "./types";
 
 const requestDeploymentLabel = "deploy";
 const deployedLabel = "deployed";
@@ -54,12 +53,8 @@ export const mergeDeployablePullRequests = async (
   await processMergeResults(mergeResults, github);
 };
 
-export type mergePullRequestsResult = ExtractPromiseResolveValue<
-  ReturnType<typeof mergePullRequests>
->;
-
 const processMergeResults = async (
-  mergeResults: mergePullRequestsResult,
+  mergeResults: mergePullRequestResult[],
   github: GithubApiManager
 ) =>
   await Promise.all(
@@ -143,16 +138,17 @@ const getMergablePullRequests = async (
   );
   return mergeablePullRequests;
 };
+
+type mergePullRequestResult = { pullRequest: Github.Response<Github.PullsGetResponse> } & (
+  | { message: string }
+  | { errorMessage: string }
+);
+
 async function mergePullRequest(
   git: GitCommandManager,
   pullRequest: Github.Response<Github.PullsGetResponse>,
   targetBranch: string
-): Promise<
-  { pullRequest: Github.Response<Github.PullsGetResponse> } & (
-    | { message: string }
-    | { errorMessage: string }
-  )
-> {
+): Promise<mergePullRequestResult> {
   try {
     const message = await mergeCommit(git, targetBranch, pullRequest.data.head.sha);
     return { pullRequest, message };
@@ -170,7 +166,7 @@ async function mergePullRequests(
   pullRequests: Github.Response<Github.PullsGetResponse>[],
   targetBranch: string
 ) {
-  const results: ExtractPromiseResolveValue<ReturnType<typeof mergePullRequest>>[] = [];
+  const results: mergePullRequestResult[] = [];
   for (const pullRequest of pullRequests) {
     await mergePullRequest(git, pullRequest, targetBranch).then(result => results.push(result));
   }
