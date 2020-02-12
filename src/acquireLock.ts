@@ -18,8 +18,10 @@ export const acquireLock = async (
   return result;
 };
 export const removeLock = async (github: githubApiManager, lockBranchName: string) => {
+  info("Removing lock...");
   await github.deleteBranch(lockBranchName).then(
     () => undefined,
     error => (error && error.status === 422 ? undefined : Promise.reject(error))
   );
+  info("Removed lock.");
 };
