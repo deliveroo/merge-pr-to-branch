@@ -1,6 +1,6 @@
 import { info, warning } from "@actions/core";
 import Github from "@octokit/rest";
-import { gitCommandManager } from "./gitCommandManager";
+import { GitCommandManager } from "./GitCommandManager";
 import { serializeError } from "serialize-error";
 import { getBranchFromRef } from "./githubApiHelpers";
 import {
@@ -11,15 +11,15 @@ import {
   githubContext,
   createCommitMessage
 } from "./githubActionHelpers";
-import { githubApiManager } from "./githubApiManager";
+import { GithubApiManager } from "./GithubApiManager";
 import { ExtractPromiseResolveValue } from "./types";
 
 const requestDeploymentLabel = "deploy";
 const deployedLabel = "deployed";
 
 export const mergeDeployablePullRequests = async (
-  github: githubApiManager,
-  git: gitCommandManager,
+  github: GithubApiManager,
+  git: GitCommandManager,
   targetBranch: string,
   baseBranch: string
 ) => {
@@ -60,7 +60,7 @@ export type mergePullRequestsResult = ExtractPromiseResolveValue<
 
 const processMergeResults = async (
   mergeResults: mergePullRequestsResult,
-  github: githubApiManager
+  github: GithubApiManager
 ) =>
   await Promise.all(
     mergeResults.map(
@@ -88,11 +88,11 @@ const processMergeResults = async (
     )
   );
 const getMergablePullRequests = async (
-  github: githubApiManager,
+  github: GithubApiManager,
   baseBranch: string,
   targetBranch: string
 ) => {
-  const options: Parameters<githubApiManager["getAllPullRequests"]>[0] = {
+  const options: Parameters<GithubApiManager["getAllPullRequests"]>[0] = {
     base: baseBranch,
     sort: "created",
     direction: "asc",
@@ -144,7 +144,7 @@ const getMergablePullRequests = async (
   return mergeablePullRequests;
 };
 async function mergePullRequest(
-  git: gitCommandManager,
+  git: GitCommandManager,
   pullRequest: Github.Response<Github.PullsGetResponse>,
   targetBranch: string
 ): Promise<
@@ -166,7 +166,7 @@ async function mergePullRequest(
 }
 
 async function mergePullRequests(
-  git: gitCommandManager,
+  git: GitCommandManager,
   pullRequests: Github.Response<Github.PullsGetResponse>[],
   targetBranch: string
 ) {
@@ -188,7 +188,7 @@ export const getBaseBranch = (context: githubContext, payload: githubPayload) =>
 };
 export const hasLabel = (labels: (string | { name: string })[], label: string) =>
   labels.some(l => (l instanceof Object ? l.name === label : l === label));
-export const mergeCommit = async (git: gitCommandManager, targetBranch: string, ref: string) => {
+export const mergeCommit = async (git: GitCommandManager, targetBranch: string, ref: string) => {
   const mergeMessage = createCommitMessage("merged");
   return await git.mergeCommit(ref, mergeMessage).then(
     () => `Successfully merged '${ref}' to '${targetBranch}'.`,

@@ -5,6 +5,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.prod.json",
     "format": "prettier --write **/*.ts",
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+    "pretest": "tsc && npm run lint",
     "test": "jest __tests__/**",
     "test:integration": "jest __integrationtests__/**"
   },
@@ -24,6 +26,11 @@
     "@types/jest": "^24.0.13",
     "@types/lodash": "^4.14.149",
     "@types/node": "^12.0.4",
+    "@typescript-eslint/eslint-plugin": "^2.19.2",
+    "@typescript-eslint/parser": "^2.19.2",
+    "eslint": "^6.8.0",
+    "eslint-config-prettier": "^6.10.0",
+    "eslint-plugin-jest": "^23.7.0",
     "jest": "^24.8.0",
     "jest-circus": "^24.7.1",
     "prettier": "^1.17.1",

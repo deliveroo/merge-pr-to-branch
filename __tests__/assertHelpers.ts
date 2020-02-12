@@ -1,9 +1,9 @@
 import Github from "@octokit/rest";
-import { githubApiManager } from "../src/githubApiManager";
-import { gitCommandManager } from "../src/gitCommandManager";
+import { GithubApiManager } from "../src/GithubApiManager";
+import { GitCommandManager } from "../src/GitCommandManager";
 
 function assertBranchCreated(
-  githubClient: jest.Mocked<githubApiManager>,
+  githubClient: jest.Mocked<GithubApiManager>,
   targetBranch: string,
   baseBranch: string
 ) {
@@ -23,14 +23,14 @@ function assertForcePushed(mockForcePush: jest.MockInstance<any, any>, timesCall
   expect(mockForcePush).toHaveBeenCalledTimes(timesCalled);
 }
 function assertLabelRemoved(
-  githubClient: jest.Mocked<githubApiManager>,
+  githubClient: jest.Mocked<GithubApiManager>,
   issue_number: number,
   label: string
 ) {
   expect(githubClient.removeIssueLabel).toHaveBeenCalledTimes(1);
   expect(githubClient.removeIssueLabel).toHaveBeenCalledWith(issue_number, label);
 }
-function assertListPullRequests(githubClient: jest.Mocked<githubApiManager>, baseBranch: string) {
+function assertListPullRequests(githubClient: jest.Mocked<GithubApiManager>, baseBranch: string) {
   expect(githubClient.getAllPullRequests).toHaveBeenCalledTimes(1);
   expect(githubClient.getAllPullRequests).toHaveBeenCalledWith({
     base: baseBranch,
@@ -40,8 +40,8 @@ function assertListPullRequests(githubClient: jest.Mocked<githubApiManager>, bas
   });
 }
 export function createAssertions(
-  githubClient: jest.Mocked<githubApiManager>,
-  gitCommandsMocks: jest.Mocked<gitCommandManager>,
+  githubClient: jest.Mocked<GithubApiManager>,
+  gitCommandsMocks: jest.Mocked<GitCommandManager>,
   targetBranch: string,
   baseBranch: string,
   mockPullRequests: Github.PullsGetResponse[]
@@ -78,7 +78,7 @@ export function createAssertions(
   };
 }
 function assertCommentsAdded(
-  githubClient: jest.Mocked<githubApiManager>,
+  githubClient: jest.Mocked<GithubApiManager>,
   issue_number: number,
   comments: string[]
 ) {
@@ -88,23 +88,23 @@ function assertCommentsAdded(
   );
 }
 function assertLabelAdded(
-  githubClient: jest.Mocked<githubApiManager>,
+  githubClient: jest.Mocked<GithubApiManager>,
   issue_number: number,
   label: string
 ) {
   expect(githubClient.addIssueLabels).toHaveBeenCalledTimes(1);
   expect(githubClient.addIssueLabels).toHaveBeenCalledWith(issue_number, label);
 }
-function assertNoCommentsAdded(githubClient: jest.Mocked<githubApiManager>) {
+function assertNoCommentsAdded(githubClient: jest.Mocked<GithubApiManager>) {
   expect(githubClient.createIssueComment).toHaveBeenCalledTimes(0);
 }
-function assertNoLabelsAdded(githubClient: jest.Mocked<githubApiManager>) {
+function assertNoLabelsAdded(githubClient: jest.Mocked<GithubApiManager>) {
   expect(githubClient.addIssueLabels).toHaveBeenCalledTimes(0);
 }
-function assertNoLabelsRemoved(githubClient: jest.Mocked<githubApiManager>) {
+function assertNoLabelsRemoved(githubClient: jest.Mocked<GithubApiManager>) {
   expect(githubClient.removeIssueLabel).toHaveBeenCalledTimes(0);
 }
-function assertGetBranch(githubClient: jest.Mocked<githubApiManager>, targetBranch: string) {
+function assertGetBranch(githubClient: jest.Mocked<GithubApiManager>, targetBranch: string) {
   expect(githubClient.getBranchRef).toHaveBeenCalledTimes(1);
   expect(githubClient.getBranchRef).toHaveBeenCalledWith(targetBranch);
 }

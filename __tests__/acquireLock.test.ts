@@ -29,11 +29,13 @@ describe("removeLock", () => {
       status: 422
     });
     await removeLock(githubApiManager, "test");
+    expect(true).toBe(true);
   });
   it("does not throw when successful", async () => {
     const githubApiManager = await createMockGithubApiManager();
     githubApiManager.deleteBranch.mockResolvedValue({} as any);
     await removeLock(githubApiManager, "test");
+    expect(true).toBe(true);
   });
   it("throws when an unexpected error occurs", async () => {
     const error = {} as any;
