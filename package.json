@@ -1,7 +1,7 @@
 {
   "name": "merge-pr-to-branch",
   "version": "0.0.0",
-  "description": "Merges Pull Requests that are labeled with 'deploy'.",
+  "description": "Merges Pull Requests that are labeled with 'stage'.",
   "scripts": {
     "build": "tsc -p tsconfig.prod.json",
     "format": "prettier --write **/*.ts",

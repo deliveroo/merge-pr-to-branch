@@ -1,10 +1,16 @@
-import { createPullRequest, createTestHelpers } from "./testHelpers";
+import { createPullRequest, createTestHelpers as _createTestHelpers } from "./testHelpers";
 import { hasLabel } from "../src/mergeDeployablePullRequests";
+import Octokit = require("@octokit/rest");
 
-const mergeablePR = createPullRequest(1, true, ["deploy"]);
-const unmergeablePR = createPullRequest(2, false, ["deploy"]);
-const mergeableDeployedPR = createPullRequest(3, true, ["deploy", "deployed"]);
-const invalidDeployedPR = createPullRequest(5, false, ["deployed"]);
+const requestLabelName = "request";
+const deployedLabelName = "merged";
+const mergeablePR = createPullRequest(1, true, [requestLabelName]);
+const unmergeablePR = createPullRequest(2, false, [requestLabelName]);
+const mergeableDeployedPR = createPullRequest(3, true, [requestLabelName, deployedLabelName]);
+const invalidDeployedPR = createPullRequest(5, false, [deployedLabelName]);
+
+const createTestHelpers = (...prs: Octokit.PullsGetResponse[]) =>
+  _createTestHelpers(requestLabelName, deployedLabelName, ...prs);
 
 describe("mergeDeployablePullRequests", () => {
   beforeEach(jest.resetModules);
@@ -34,10 +40,10 @@ describe("mergeDeployablePullRequests", () => {
     assert.hardResetToBase();
     assert.commitsMerged(mergeablePR.head.sha);
     assert.forcePushed();
-    assert.labelAdded(mergeablePR.number, "deployed");
+    assert.labelAdded(mergeablePR.number, deployedLabelName);
     assert.commentsAdded(mergeablePR.number, [expect.stringContaining(mergeablePR.head.sha)]);
   });
-  it("removes deploy label and adds a comment when merge fails and deployed label isnt present", async () => {
+  it("removes request label and adds a comment when merge fails and deployed label isnt present", async () => {
     const { assert, runTest, github, gitCommandsMocks } = await createTestHelpers(
       mergeablePR,
       unmergeablePR
@@ -57,10 +63,10 @@ describe("mergeDeployablePullRequests", () => {
     assert.commitsMerged(mergeablePR.head.sha);
     assert.hardResetToBase();
     assert.forcePushed();
-    assert.labelRemoved(mergeablePR.number, "deploy");
+    assert.labelRemoved(mergeablePR.number, requestLabelName);
     assert.commentsAdded(mergeablePR.number, [expect.stringContaining(mergeFailureReason)]);
   });
-  it("removes deployed label and adds a comment deploy label isnt present", async () => {
+  it("removes deployed label and adds a comment request label isnt present", async () => {
     const { assert, runTest } = await createTestHelpers(invalidDeployedPR);
 
     await runTest();
@@ -71,7 +77,7 @@ describe("mergeDeployablePullRequests", () => {
     assert.gitStatus();
     assert.hardResetToBase();
     assert.forcePushed();
-    assert.labelRemoved(invalidDeployedPR.number, "deployed");
+    assert.labelRemoved(invalidDeployedPR.number, deployedLabelName);
     assert.commentsAdded(invalidDeployedPR.number, [expect.stringContaining("label is missing")]);
   });
   it("doesnt add deployed label or a comment when deployed label is present", async () => {

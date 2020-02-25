@@ -13,16 +13,21 @@ import {
 } from "./githubActionHelpers";
 import { GithubApiManager } from "./GithubApiManager";
 
-const requestDeploymentLabel = "deploy";
-const deployedLabel = "deployed";
-
 export const mergeDeployablePullRequests = async (
   github: GithubApiManager,
   git: GitCommandManager,
   targetBranch: string,
-  baseBranch: string
+  baseBranch: string,
+  requestDeploymentLabelName: string,
+  deployedLabelName: string
 ) => {
-  const mergeablePullRequests = await getMergablePullRequests(github, baseBranch, targetBranch);
+  const mergeablePullRequests = await getMergablePullRequests(
+    github,
+    baseBranch,
+    targetBranch,
+    requestDeploymentLabelName,
+    deployedLabelName
+  );
   const prRefs = mergeablePullRequests.map(p => p.data.head.ref);
   const targetRef = await github.getBranchRef(targetBranch);
   if (!("data" in targetRef)) {
@@ -50,12 +55,14 @@ export const mergeDeployablePullRequests = async (
     )}`
   );
   await git.forcePush();
-  await processMergeResults(mergeResults, github);
+  await processMergeResults(mergeResults, github, requestDeploymentLabelName, deployedLabelName);
 };
 
 const processMergeResults = async (
   mergeResults: mergePullRequestResult[],
-  github: GithubApiManager
+  github: GithubApiManager,
+  requestDeploymentLabelName: string,
+  deployedLabelName: string
 ) =>
   await Promise.all(
     mergeResults.map(
@@ -67,16 +74,16 @@ const processMergeResults = async (
       }) => {
         if ("errorMessage" in rest) {
           const { errorMessage } = rest;
-          await github.removeIssueLabel(number, requestDeploymentLabel);
+          await github.removeIssueLabel(number, requestDeploymentLabelName);
           await github.createIssueComment(number, createCommentMessage(errorMessage));
         }
-        if (hasLabel(labels, deployedLabel)) {
-          await github.removeIssueLabel(number, deployedLabel);
+        if (hasLabel(labels, deployedLabelName)) {
+          await github.removeIssueLabel(number, deployedLabelName);
         } else if ("message" in rest) {
-          if (!hasLabel(labels, deployedLabel)) {
+          if (!hasLabel(labels, deployedLabelName)) {
             const { message } = rest;
             await github.createIssueComment(number, createCommentMessage(message));
-            await github.addIssueLabels(number, deployedLabel);
+            await github.addIssueLabels(number, deployedLabelName);
           }
         }
       }
@@ -85,7 +92,9 @@ const processMergeResults = async (
 const getMergablePullRequests = async (
   github: GithubApiManager,
   baseBranch: string,
-  targetBranch: string
+  targetBranch: string,
+  requestDeploymentLabelName: string,
+  deployedLabelName: string
 ) => {
   const options: Parameters<GithubApiManager["getAllPullRequests"]>[0] = {
     base: baseBranch,
@@ -97,9 +106,9 @@ const getMergablePullRequests = async (
   info(`Found ${pullRequestList.length} ${options.state} pull requests against '${options.base}'.`);
   const prsToRemove: { reason: string; pull_number: number }[] = [];
   const labeledPullRequests = pullRequestList.filter(p => {
-    const include = hasLabel(p.labels, requestDeploymentLabel);
-    if (!include && hasLabel(p.labels, deployedLabel)) {
-      const reason = `Removing '${deployedLabel}' label as '${requestDeploymentLabel}' label is missing.`;
+    const include = hasLabel(p.labels, requestDeploymentLabelName);
+    if (!include && hasLabel(p.labels, deployedLabelName)) {
+      const reason = `Removing '${deployedLabelName}' label as '${requestDeploymentLabelName}' label is missing.`;
       info(reason);
       prsToRemove.push({
         reason,
@@ -109,7 +118,7 @@ const getMergablePullRequests = async (
     return include;
   });
   info(
-    `Found ${labeledPullRequests.length} pull requests labeled with '${requestDeploymentLabel}'.`
+    `Found ${labeledPullRequests.length} pull requests labeled with '${requestDeploymentLabelName}'.`
   );
   const mergeablePullRequests = (
     await Promise.all(labeledPullRequests.map(p => github.getPullRequest(p.number)))
@@ -118,7 +127,7 @@ const getMergablePullRequests = async (
       info(`found mergeable pull request #${number}.`);
     } else {
       info(`skipping unmergeable pull request #${number}.`);
-      if (hasLabel(labels, deployedLabel)) {
+      if (hasLabel(labels, deployedLabelName)) {
         info(`Adding pull request #${number} to be removed due to umergeable.`);
         prsToRemove.push({
           reason: `Removing pull request from ${targetBranch} due to unmergeable PR.`,
@@ -131,7 +140,7 @@ const getMergablePullRequests = async (
   await Promise.all(
     prsToRemove.map(
       async p =>
-        await github.removeIssueLabel(p.pull_number, deployedLabel).then(async () => {
+        await github.removeIssueLabel(p.pull_number, deployedLabelName).then(async () => {
           await github.createIssueComment(p.pull_number, createCommentMessage(p.reason));
         })
     )

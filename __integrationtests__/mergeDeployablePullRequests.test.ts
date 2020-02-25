@@ -7,7 +7,7 @@ describe("mergeDeployablePullRequests", () => {
   it("intergration test", async () => {
     const targetBranch = "integration-tests";
     const { github, git } = setup();
-    await mergeDeployablePullRequests(github, git, targetBranch, "master");
+    await mergeDeployablePullRequests(github, git, targetBranch, "master", "stage", "staged");
     expect(true).toBe(true);
   }, 100000);
 });

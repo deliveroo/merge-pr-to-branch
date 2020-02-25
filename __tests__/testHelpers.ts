@@ -46,7 +46,11 @@ const mockFs = (workingDirectory: string) => {
     promises: { mkdtemp: jest.fn().mockResolvedValue(workingDirectory) }
   }));
 };
-export const createTestHelpers = async (...mockPullRequests: Github.PullsGetResponse[]) => {
+export const createTestHelpers = async (
+  requestLabelName: string,
+  deployedLabelName: string,
+  ...mockPullRequests: Github.PullsGetResponse[]
+) => {
   const owner = "owner";
   const repo = "repo";
   const targetBranch = "target-branch";
@@ -81,7 +85,14 @@ export const createTestHelpers = async (...mockPullRequests: Github.PullsGetResp
     assert: createAssertions(github, gitCommandsMocks, targetBranch, baseBranch, mockPullRequests),
     runTest: async () => {
       const target = await import("../src/mergeDeployablePullRequests");
-      await target.mergeDeployablePullRequests(github, gitCommandsMocks, targetBranch, baseBranch);
+      await target.mergeDeployablePullRequests(
+        github,
+        gitCommandsMocks,
+        targetBranch,
+        baseBranch,
+        requestLabelName,
+        deployedLabelName
+      );
     }
   };
 };
