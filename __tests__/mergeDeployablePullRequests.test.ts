@@ -4,10 +4,10 @@ import Octokit = require("@octokit/rest");
 
 const requestLabelName = "request";
 const deployedLabelName = "merged";
-const mergeablePR = createPullRequest(1, true, ["request"]);
-const unmergeablePR = createPullRequest(2, false, ["request"]);
-const mergeableDeployedPR = createPullRequest(3, true, ["request", "merged"]);
-const invalidDeployedPR = createPullRequest(5, false, ["merged"]);
+const mergeablePR = createPullRequest(1, true, [requestLabelName]);
+const unmergeablePR = createPullRequest(2, false, [requestLabelName]);
+const mergeableDeployedPR = createPullRequest(3, true, [requestLabelName, deployedLabelName]);
+const invalidDeployedPR = createPullRequest(5, false, [deployedLabelName]);
 
 const createTestHelpers = (...prs: Octokit.PullsGetResponse[]) =>
   _createTestHelpers(requestLabelName, deployedLabelName, ...prs);
