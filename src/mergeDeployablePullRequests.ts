@@ -13,8 +13,8 @@ import {
 } from "./githubActionHelpers";
 import { GithubApiManager } from "./GithubApiManager";
 
-const requestDeploymentLabel = "deploy";
-const deployedLabel = "deployed";
+const requestDeploymentLabel = "stage";
+const deployedLabel = "staged";
 
 export const mergeDeployablePullRequests = async (
   github: GithubApiManager,

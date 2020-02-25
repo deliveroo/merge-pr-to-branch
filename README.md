@@ -33,7 +33,7 @@ jobs:
 
 ## Use the action
 
-1. To merge a pull request to the `target-branch`, add the `deploy` label. 
+1. To merge a pull request to the `target-branch`, add the `stage` label. 
 2. `merge-pr-to-branch` will run and attempt to merge the pull request
-    * If successful, the `deployed` label will be added along with a comment
-    * If unsuccessful, a comment with the error will be added and the `deploy` label will be removed
+    * If successful, the `staged` label will be added along with a comment
+    * If unsuccessful, a comment with the error will be added and the `stage` label will be removed

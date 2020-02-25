@@ -26,5 +26,6 @@ const setup = () => {
   const github = new GithubApiManager(auth, "deliveroo", "dev-glue");
   const workingDirectory = mkdtempSync("git-workspace");
   const git = new GitCommandManager(workingDirectory, GITHUB_USER, GITHUB_PAT);
+  // TODO: should we create PRs and such?
   return { git, github };
 };
