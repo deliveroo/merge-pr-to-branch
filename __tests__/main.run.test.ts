@@ -29,7 +29,9 @@ describe("main", () => {
       ["target-branch", "target-branch-value"],
       ["lock-branch-name", "lock-branch-name-value"],
       ["lock-check-interval-ms", "1"],
-      ["repo-token", "repo-token-value"]
+      ["repo-token", "repo-token-value"],
+      ["request-label-name", "request-label"],
+      ["deployed-label-name", "deployed-label"]
     ]);
     getInput.mockImplementation(key => inputValues.get(key) || "");
     const mockContext = {
@@ -85,6 +87,12 @@ describe("main", () => {
       Array [
         Array [
           "target-branch",
+        ],
+        Array [
+          "request-label-name",
+        ],
+        Array [
+          "deployed-label-name",
         ],
         Array [
           "repo-token",

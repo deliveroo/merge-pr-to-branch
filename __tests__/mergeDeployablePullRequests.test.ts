@@ -1,15 +1,20 @@
 import { createPullRequest, createTestHelpers } from "./testHelpers";
 import { hasLabel } from "../src/mergeDeployablePullRequests";
 
-const mergeablePR = createPullRequest(1, true, ["stage"]);
-const unmergeablePR = createPullRequest(2, false, ["stage"]);
-const mergeableDeployedPR = createPullRequest(3, true, ["stage", "staged"]);
-const invalidDeployedPR = createPullRequest(5, false, ["staged"]);
+const requestLabelName = "request";
+const deployedLabelName = "merged";
+const mergeablePR = createPullRequest(1, true, ["request"]);
+const unmergeablePR = createPullRequest(2, false, ["request"]);
+const mergeableDeployedPR = createPullRequest(3, true, ["request", "merged"]);
+const invalidDeployedPR = createPullRequest(5, false, ["merged"]);
 
 describe("mergeDeployablePullRequests", () => {
   beforeEach(jest.resetModules);
   it("creates targetBranch if missing", async () => {
-    const { assert, runTest, github } = await createTestHelpers();
+    const { assert, runTest, github } = await createTestHelpers(
+      requestLabelName,
+      deployedLabelName
+    );
 
     github.getBranchRef.mockResolvedValue({ status: 404 });
 
@@ -19,8 +24,13 @@ describe("mergeDeployablePullRequests", () => {
     assert.getTargetBranch();
     assert.targetBranchCreated();
   });
-  it("adds staged label and a comment when merged and staged label isnt present", async () => {
-    const { assert, runTest, github } = await createTestHelpers(mergeablePR, unmergeablePR);
+  it("adds deployed label and a comment when merged and deployed label isnt present", async () => {
+    const { assert, runTest, github } = await createTestHelpers(
+      requestLabelName,
+      deployedLabelName,
+      mergeablePR,
+      unmergeablePR
+    );
 
     github.getBranchRef.mockResolvedValue({ status: 404 });
 
@@ -34,11 +44,13 @@ describe("mergeDeployablePullRequests", () => {
     assert.hardResetToBase();
     assert.commitsMerged(mergeablePR.head.sha);
     assert.forcePushed();
-    assert.labelAdded(mergeablePR.number, "staged");
+    assert.labelAdded(mergeablePR.number, deployedLabelName);
     assert.commentsAdded(mergeablePR.number, [expect.stringContaining(mergeablePR.head.sha)]);
   });
-  it("removes stage label and adds a comment when merge fails and staged label isnt present", async () => {
+  it("removes request label and adds a comment when merge fails and deployed label isnt present", async () => {
     const { assert, runTest, github, gitCommandsMocks } = await createTestHelpers(
+      requestLabelName,
+      deployedLabelName,
       mergeablePR,
       unmergeablePR
     );
@@ -57,11 +69,15 @@ describe("mergeDeployablePullRequests", () => {
     assert.commitsMerged(mergeablePR.head.sha);
     assert.hardResetToBase();
     assert.forcePushed();
-    assert.labelRemoved(mergeablePR.number, "stage");
+    assert.labelRemoved(mergeablePR.number, requestLabelName);
     assert.commentsAdded(mergeablePR.number, [expect.stringContaining(mergeFailureReason)]);
   });
-  it("removes staged label and adds a comment stage label isnt present", async () => {
-    const { assert, runTest } = await createTestHelpers(invalidDeployedPR);
+  it("removes deployed label and adds a comment request label isnt present", async () => {
+    const { assert, runTest } = await createTestHelpers(
+      requestLabelName,
+      deployedLabelName,
+      invalidDeployedPR
+    );
 
     await runTest();
 
@@ -71,11 +87,15 @@ describe("mergeDeployablePullRequests", () => {
     assert.gitStatus();
     assert.hardResetToBase();
     assert.forcePushed();
-    assert.labelRemoved(invalidDeployedPR.number, "staged");
+    assert.labelRemoved(invalidDeployedPR.number, deployedLabelName);
     assert.commentsAdded(invalidDeployedPR.number, [expect.stringContaining("label is missing")]);
   });
-  it("doesnt add staged label or a comment when staged label is present", async () => {
-    const { assert, runTest, gitCommandsMocks } = await createTestHelpers(mergeableDeployedPR);
+  it("doesnt add deployed label or a comment when deployed label is present", async () => {
+    const { assert, runTest, gitCommandsMocks } = await createTestHelpers(
+      requestLabelName,
+      deployedLabelName,
+      mergeableDeployedPR
+    );
 
     gitCommandsMocks.mergeCommit.mockResolvedValue({} as any);
 
@@ -93,6 +113,8 @@ describe("mergeDeployablePullRequests", () => {
   });
   it("doesnt push the local branch if it is equivalent with the remote", async () => {
     const { assert, runTest, github, gitCommandsMocks } = await createTestHelpers(
+      requestLabelName,
+      deployedLabelName,
       mergeablePR,
       unmergeablePR
     );

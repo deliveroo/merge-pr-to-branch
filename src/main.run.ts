@@ -11,12 +11,14 @@ const { mkdtemp } = promises;
 const targetBranchInputName = "target-branch";
 const lockBranchNameInputName = "lock-branch-name";
 const lockCheckIntervalInputName = "lock-check-interval-ms";
+const requestLabelNameInputName = "request-label-name";
+const deployedLabelNameInputName = "deployed-label-name";
+
 export async function run() {
   try {
-    const targetBranch = getInput(targetBranchInputName);
-    if (!targetBranch) {
-      throw new Error(`Missing input '${targetBranchInputName}'.`);
-    }
+    const targetBranch = getInputValue(targetBranchInputName);
+    const requestLabelName = getInputValue(requestLabelNameInputName);
+    const deployedLabelName = getInputValue(deployedLabelNameInputName);
 
     const { payload } = context;
     const { repository } = payload;
@@ -50,9 +52,23 @@ export async function run() {
     }
     const workingDirectory = await mkdtemp("git-workspace");
     const git = new GitCommandManager(workingDirectory, user, token);
-    await mergeDeployablePullRequests(github, git, targetBranch, baseBranch);
+    await mergeDeployablePullRequests(
+      github,
+      git,
+      targetBranch,
+      baseBranch,
+      requestLabelName,
+      deployedLabelName
+    );
     await removeLock(github, lockBranchName);
   } catch (error) {
     setFailed(JSON.stringify(serializeError(error)));
   }
+}
+function getInputValue(inputName: string) {
+  const value = getInput(inputName);
+  if (!value) {
+    throw new Error(`Missing input '${inputName}'.`);
+  }
+  return value;
 }
