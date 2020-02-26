@@ -7,7 +7,7 @@ See [Gap Analysis](gap-analysis.md).
 # Getting started
 
 ## Installation
-To enable this github action, run the following:
+To enable this github action, run the following in your repo:
 
 ```bash
 curl -s https://raw.githubusercontent.com/deliveroo/merge-pr-to-branch/master/install/install.sh | bash -s
