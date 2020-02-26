@@ -1,0 +1,17 @@
+on:
+    pull_request:
+      branches:
+        - master
+      types: [labeled, unlabeled, closed, reopened, synchronize]
+    push:
+      branches:
+        - master
+
+jobs:
+    build:
+      runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@v2
+          with:
+            ref: master
+        - uses: deliveroo/merge-pr-to-branch@v2
