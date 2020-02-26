@@ -6,8 +6,14 @@ See [Gap Analysis](gap-analysis.md).
 
 # Getting started
 
-## Add Github Workflow
-To enable this github action, add the following workflow to your repo:
+## Installation
+To enable this github action, run the following in your repo:
+
+```bash
+curl -s https://raw.githubusercontent.com/deliveroo/merge-pr-to-branch/master/install/install.sh | bash -s
+```
+
+Which will add the following workflow to your repo:
 
 `.github/workflows/merge-pr-to-branch.yml`:
 
