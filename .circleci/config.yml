@@ -3,6 +3,9 @@ global_dockerhub_login: &global_dockerhub_login
   run:
     name: Authenticate with hub.docker.com - DockerHub
     command: docker login -u $GLOBAL_DOCKERHUB_USERNAME -p $GLOBAL_DOCKERHUB_PASSWORD
+global_context: &global_context
+  context:
+    - org-global
 global_remote_docker: &global_remote_docker
   version: 19.03.13
 global_dockerhub_auth: &global_dockerhub_auth
@@ -18,10 +21,15 @@ jobs:
         <<: *global_dockerhub_auth
 
     steps:
-      - *global_dockerhub_login
       - checkout
-
       - setup_remote_docker:
           docker_layer_caching: true
-
+          <<: *global_remote_docker
+      - *global_dockerhub_login
       - run: docker build -f build.Dockerfile .
+workflows:
+  version: 2
+  all:
+    jobs:
+      - build:
+          <<: *global_context
