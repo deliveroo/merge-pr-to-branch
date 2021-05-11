@@ -1,6 +1,5 @@
 FROM node:alpine
 
-RUN apk --no-cache add g++ gcc libgcc libstdc++ linux-headers make python git
 RUN npm install --quiet node-gyp -g
 
 WORKDIR /app
