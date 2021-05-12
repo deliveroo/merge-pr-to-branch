@@ -19,7 +19,7 @@
     "@actions/tool-cache": "^1.0.0",
     "@octokit/rest": "^16.37.0",
     "@octokit/webhooks": "^7.0.0",
-    "lodash": "^4.17.15",
+    "lodash": "^4.17.21",
     "serialize-error": "^5.0.0"
   },
   "devDependencies": {
