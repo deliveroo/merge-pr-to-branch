@@ -5,6 +5,7 @@ import { GithubApiManager } from "./GithubApiManager";
 import { mergeDeployablePullRequests, getBaseBranch } from "./mergeDeployablePullRequests";
 import { GitCommandManager } from "./GitCommandManager";
 import { promises } from "fs";
+import { retry } from "./retry";
 import { acquireLock, removeLock } from "./acquireLock";
 const { mkdtemp } = promises;
 
@@ -47,9 +48,8 @@ export async function run() {
     const github = new GithubApiManager(token, owner, repo);
     const lockBranchName = getInput(lockBranchNameInputName);
     const lockCheckIntervalInMs = Number(getInput(lockCheckIntervalInputName));
-    while (!(await acquireLock(github, lockBranchName, baseBranch))) {
-      await new Promise(resolve => setTimeout(resolve, lockCheckIntervalInMs));
-    }
+    const acquireThisLock = () => acquireLock(github, lockBranchName, baseBranch);
+    await retry(acquireThisLock, 5, "Could not acquire lock", lockCheckIntervalInMs);
     const workingDirectory = await mkdtemp("git-workspace");
     const git = new GitCommandManager(workingDirectory, user, token);
     await mergeDeployablePullRequests(
