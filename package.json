@@ -18,7 +18,7 @@
     "@actions/io": "^1.0.0",
     "@actions/tool-cache": "^1.0.0",
     "@octokit/rest": "^16.37.0",
-    "@octokit/webhooks": "^7.0.0",
+    "@octokit/webhooks": "^9.26.3",
     "lodash": "^4.17.21",
     "serialize-error": "^5.0.0"
   },
