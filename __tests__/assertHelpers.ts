@@ -13,7 +13,7 @@ function assertBranchCreated(
 function assertCommitsMerged(mockMergeCommit: jest.MockInstance<any, any>, commits: string[]) {
   expect(mockMergeCommit).toHaveBeenCalledTimes(commits.length);
   commits.forEach(commit =>
-    expect(mockMergeCommit).toHaveBeenCalledWith(commit, "merged by merge-pr-to-branch")
+    expect(mockMergeCommit).toHaveBeenCalledWith(commit, expect.stringMatching(/^merged .* by merge-pr-to-branch/))
   );
 }
 function assertHardReset(mockResetHard: jest.MockInstance<any, any>, commit: string) {

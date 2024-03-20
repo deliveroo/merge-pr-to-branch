@@ -89,6 +89,7 @@ const processMergeResults = async (
       }
     )
   );
+
 const getMergablePullRequests = async (
   github: GithubApiManager,
   baseBranch: string,
@@ -159,7 +160,7 @@ async function mergePullRequest(
   targetBranch: string
 ): Promise<mergePullRequestResult> {
   try {
-    const message = await mergeCommit(git, targetBranch, pullRequest.data.head.sha);
+    const message = await mergeCommit(git, targetBranch, pullRequest);
     return { pullRequest, message };
   } catch (error) {
     const errorMessage = `Skipped PR due to merge error: \n${JSON.stringify(
@@ -191,15 +192,21 @@ export const getBaseBranch = (context: githubContext, payload: githubPayload) =>
     return getBranchFromRef(payload.ref);
   }
 };
+
 export const hasLabel = (labels: (string | { name: string })[], label: string) =>
   labels.some(l => (l instanceof Object ? l.name === label : l === label));
-export const mergeCommit = async (git: GitCommandManager, targetBranch: string, ref: string) => {
-  const mergeMessage = createCommitMessage("merged");
-  return await git.mergeCommit(ref, mergeMessage).then(
-    () => `Successfully merged '${ref}' to '${targetBranch}'.`,
+
+export const mergeCommit = async (git: GitCommandManager, targetBranch: string,
+                                  pullRequest: Github.Response<Github.PullsGetResponse>,) => {
+  const commitSha = pullRequest.data.head.sha
+  const prNumber = pullRequest.data.number;
+  const baseBranch = pullRequest.data.head.ref;
+  const mergeMessage = createCommitMessage(`merged '${baseBranch}' (#${prNumber})`);
+  return await git.mergeCommit(commitSha, mergeMessage).then(
+    () => `Successfully merged '${commitSha}' to '${targetBranch}'.`,
     error => {
       throw new Error(
-        `Merge '${ref}' to '${targetBranch}' failed: \n${JSON.stringify(serializeError(error))}`
+        `Merge '${commitSha}' to '${targetBranch}' failed: \n${JSON.stringify(serializeError(error))}`
       );
     }
   );
