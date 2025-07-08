@@ -20,6 +20,9 @@ export class GitCommandManager {
   public forcePush() {
     return this.execGit(`git push -f`);
   }
+  public pushEmptyCommit() {
+    return this.execGit(`git commit --allow-empty -m "merge-pr-to-branch empty commit"`);
+  }
   public fetch(depth = 0, ...refs: string[]) {
     return this.execGit(
       `git fetch ${depth ? `--depth=${depth}` : ""} --no-tags --prune ${_remoteName} ${refs.join(

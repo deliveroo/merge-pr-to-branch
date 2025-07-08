@@ -54,6 +54,7 @@ export const mergeDeployablePullRequests = async (
       "\n"
     )}`
   );
+  await git.pushEmptyCommit();
   await git.forcePush();
   await processMergeResults(mergeResults, github, requestDeploymentLabelName, deployedLabelName);
 };
