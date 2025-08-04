@@ -28,7 +28,7 @@ export class GitCommandManager {
     );
   }
   public checkout(branch: string) {
-    return this.execGit(`git checkout ${branch}`);
+    return this.execGit(`git checkout ${branch} --`);
   }
   public shortStatDiffWithRemote(branch: string) {
     return this.execGit(`git diff ${branch} ${_remoteName}/${branch} --shortstat`, {
