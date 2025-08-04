@@ -31,7 +31,7 @@ export class GitCommandManager {
     return this.execGit(`git checkout ${branch} --`);
   }
   public shortStatDiffWithRemote(branch: string) {
-    return this.execGit(`git diff ${branch} ${_remoteName}/${branch} --shortstat`, {
+    return this.execGit(`git diff ${branch} ${_remoteName}/${branch} --shortstat --`, {
       includeStdOut: true
     });
   }
