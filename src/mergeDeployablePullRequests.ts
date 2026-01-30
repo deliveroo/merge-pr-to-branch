@@ -76,15 +76,10 @@ const processMergeResults = async (
           const { errorMessage } = rest;
           await github.removeIssueLabel(number, requestDeploymentLabelName);
           await github.createIssueComment(number, createCommentMessage(errorMessage));
-        }
-        if (hasLabel(labels, deployedLabelName)) {
-          await github.removeIssueLabel(number, deployedLabelName);
-        } else if ("message" in rest) {
-          if (!hasLabel(labels, deployedLabelName)) {
-            const { message } = rest;
-            await github.createIssueComment(number, createCommentMessage(message));
-            await github.addIssueLabels(number, deployedLabelName);
-          }
+        } else if ("message" in rest && !hasLabel(labels, deployedLabelName)) {
+          const { message } = rest;
+          await github.createIssueComment(number, createCommentMessage(message));
+          await github.addIssueLabels(number, deployedLabelName);
         }
       }
     )
