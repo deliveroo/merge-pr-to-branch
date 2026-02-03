@@ -20,6 +20,9 @@ inputs:
   deployed-label-name:
     description: 'Label which indicates a PR was successfully merged to target-branch'
     default: staged
+  trigger-workflows:
+    description: "Names of workflows to trigger after merging PRs. Should be a multi-line string, with each line being a workflow name."
+    default: ""
 runs:
   using: 'docker'
   image: 'Dockerfile'

@@ -101,3 +101,15 @@ export const getBranchCommit = async (
   } = branchRef.data;
   return sha;
 };
+
+export const triggerWorkflow = async (
+  githubClient: Github,
+  owner: string,
+  repo: string,
+  workflowName: string,
+  ref: string
+) => {
+  await githubClient.request(`POST /repos/${owner}/${repo}/actions/workflows/${workflowName}/dispatches`, {
+    ref
+  });
+}
