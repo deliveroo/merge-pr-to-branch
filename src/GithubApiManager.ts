@@ -5,7 +5,8 @@ import {
   getBranchRef,
   formatHeadFromBranch,
   getAllPaginatedItems,
-  createGithubClient
+  createGithubClient,
+  triggerWorkflow
 } from "./githubApiHelpers";
 export class GithubApiManager {
   constructor(
@@ -26,6 +27,9 @@ export class GithubApiManager {
   }
   public getBranchRef(branch: string) {
     return getBranchRef(this.client, this.owner, this.repo, branch);
+  }
+  public triggerWorkflow(workflowName: string, ref: string) {
+    return triggerWorkflow(this.client, this.owner, this.repo, workflowName, ref);
   }
   public deleteBranch(branch: string) {
     return this.client.git.deleteRef({

@@ -1,4 +1,4 @@
-import { getInput, info, setFailed } from "@actions/core";
+import { getInput, info, setFailed, getMultilineInput } from "@actions/core";
 import { context } from "@actions/github";
 import { serializeError } from "serialize-error";
 import { GithubApiManager } from "./GithubApiManager";
@@ -7,10 +7,12 @@ import { GitCommandManager } from "./GitCommandManager";
 import { promises } from "fs";
 import { retry } from "./retry";
 import { acquireLock, removeLock } from "./acquireLock";
+import { triggerWorkflows } from "./triggerWorkflows";
 const { mkdtemp } = promises;
 
 const targetBranchInputName = "target-branch";
 const lockBranchNameInputName = "lock-branch-name";
+const triggerWorkflowsInputName = "trigger-workflows";
 const lockCheckIntervalInputName = "lock-check-interval-ms";
 const requestLabelNameInputName = "request-label-name";
 const deployedLabelNameInputName = "deployed-label-name";
@@ -48,6 +50,7 @@ export async function run() {
     const github = new GithubApiManager(token, owner, repo);
     const lockBranchName = getInput(lockBranchNameInputName);
     const lockCheckIntervalInMs = Number(getInput(lockCheckIntervalInputName));
+    const triggerWorkflowsInput = getMultilineInput(triggerWorkflowsInputName);
     const acquireThisLock = () => acquireLock(github, lockBranchName, baseBranch);
     await retry(acquireThisLock, 5, "Could not acquire lock", lockCheckIntervalInMs);
     const workingDirectory = await mkdtemp("git-workspace");
@@ -60,6 +63,7 @@ export async function run() {
       requestLabelName,
       deployedLabelName
     );
+    await triggerWorkflows(github, targetBranch, triggerWorkflowsInput);
     await removeLock(github, lockBranchName);
   } catch (error) {
     setFailed(JSON.stringify(serializeError(error)));
