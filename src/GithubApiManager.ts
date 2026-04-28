@@ -55,10 +55,13 @@ export class GithubApiManager {
     return this.client.issues.createComment({ ...this.options, issue_number, body });
   }
   public dispatchWorkflow(workflow_id: string, ref: string) {
-    return this.client.actions.createWorkflowDispatch({
-      ...this.options,
-      workflow_id,
-      ref
-    });
+    return this.client.request(
+      "POST /repos/:owner/:repo/actions/workflows/:workflow_id/dispatches",
+      {
+        ...this.options,
+        workflow_id,
+        ref
+      }
+    );
   }
 }
