@@ -54,4 +54,11 @@ export class GithubApiManager {
   public createIssueComment(issue_number: number, body: string) {
     return this.client.issues.createComment({ ...this.options, issue_number, body });
   }
+  public dispatchWorkflow(workflow_id: string, ref: string) {
+    return this.client.actions.createWorkflowDispatch({
+      ...this.options,
+      workflow_id,
+      ref
+    });
+  }
 }
