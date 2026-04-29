@@ -104,7 +104,7 @@ describe("main", () => {
           "lock-check-interval-ms",
         ],
         Array [
-          "trigger-workflow",
+          "trigger-workflows",
         ],
       ]
     `);
@@ -119,24 +119,36 @@ describe("main", () => {
 
   it.each([
     {
-      name: "dispatches when input set and merge pushed",
-      triggerWorkflow: "ci-workflows.yml",
+      name: "dispatches single workflow when input set and merge pushed",
+      triggerWorkflowsInput: "ci-workflows.yml",
       pushed: true,
-      expectDispatchCalls: 1
+      expectedDispatched: ["ci-workflows.yml"]
+    },
+    {
+      name: "dispatches each workflow on a newline-separated list",
+      triggerWorkflowsInput: "ci-workflows.yml\nintegration.yml\n  e2e.yml  ",
+      pushed: true,
+      expectedDispatched: ["ci-workflows.yml", "integration.yml", "e2e.yml"]
     },
     {
       name: "skips dispatch when merge did not push",
-      triggerWorkflow: "ci-workflows.yml",
+      triggerWorkflowsInput: "ci-workflows.yml",
       pushed: false,
-      expectDispatchCalls: 0
+      expectedDispatched: []
     },
     {
       name: "skips dispatch when input is empty",
-      triggerWorkflow: "",
+      triggerWorkflowsInput: "",
       pushed: true,
-      expectDispatchCalls: 0
+      expectedDispatched: []
+    },
+    {
+      name: "skips dispatch when input is whitespace-only",
+      triggerWorkflowsInput: "  \n\n  ",
+      pushed: true,
+      expectedDispatched: []
     }
-  ])("$name", async ({ triggerWorkflow, pushed, expectDispatchCalls }) => {
+  ])("$name", async ({ triggerWorkflowsInput, pushed, expectedDispatched }) => {
     // arrange
     const { getInput } = await createMock<typeof import("@actions/core")>("@actions/core");
     const actions_github = await createMock<typeof import("@actions/github")>("@actions/github");
@@ -158,7 +170,7 @@ describe("main", () => {
       ["repo-token", "repo-token-value"],
       ["request-label-name", "request-label"],
       ["deployed-label-name", "deployed-label"],
-      ["trigger-workflow", triggerWorkflow]
+      ["trigger-workflows", triggerWorkflowsInput]
     ]);
     getInput.mockImplementation(key => inputValues.get(key) || "");
     const mockContext = {
@@ -181,12 +193,9 @@ describe("main", () => {
     const githubInstance = GithubApiManager.mock.instances[0] as jest.Mocked<
       import("../src/GithubApiManager").GithubApiManager
     >;
-    expect(githubInstance.dispatchWorkflow).toHaveBeenCalledTimes(expectDispatchCalls);
-    if (expectDispatchCalls > 0) {
-      expect(githubInstance.dispatchWorkflow).toHaveBeenCalledWith(
-        triggerWorkflow,
-        "target-branch-value"
-      );
-    }
+    expect(githubInstance.dispatchWorkflow).toHaveBeenCalledTimes(expectedDispatched.length);
+    expectedDispatched.forEach(workflow => {
+      expect(githubInstance.dispatchWorkflow).toHaveBeenCalledWith(workflow, "target-branch-value");
+    });
   });
 });

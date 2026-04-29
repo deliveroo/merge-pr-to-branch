@@ -20,8 +20,8 @@ inputs:
   deployed-label-name:
     description: 'Label which indicates a PR was successfully merged to target-branch'
     default: staged
-  trigger-workflow:
-    description: 'Optional workflow filename (e.g. ci-workflows.yml) to dispatch against target-branch after a successful merge. Workaround for GitHub not firing workflows from pushes made with GITHUB_TOKEN.'
+  trigger-workflows:
+    description: 'Optional newline-separated list of workflow filenames (e.g. ci-workflows.yml) to dispatch against target-branch after a successful merge. Workaround for GitHub not firing workflows from pushes made with GITHUB_TOKEN.'
     default: ''
 runs:
   using: 'docker'

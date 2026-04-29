@@ -14,7 +14,7 @@ const lockBranchNameInputName = "lock-branch-name";
 const lockCheckIntervalInputName = "lock-check-interval-ms";
 const requestLabelNameInputName = "request-label-name";
 const deployedLabelNameInputName = "deployed-label-name";
-const triggerWorkflowInputName = "trigger-workflow";
+const triggerWorkflowsInputName = "trigger-workflows";
 
 export async function run() {
   try {
@@ -61,10 +61,15 @@ export async function run() {
       requestLabelName,
       deployedLabelName
     );
-    const triggerWorkflow = getInput(triggerWorkflowInputName);
-    if (pushed && triggerWorkflow) {
-      info(`Dispatching workflow '${triggerWorkflow}' against '${targetBranch}'.`);
-      await github.dispatchWorkflow(triggerWorkflow, targetBranch);
+    const triggerWorkflows = getInput(triggerWorkflowsInputName)
+      .split("\n")
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
+    if (pushed && triggerWorkflows.length > 0) {
+      for (const workflow of triggerWorkflows) {
+        info(`Dispatching workflow '${workflow}' against '${targetBranch}'.`);
+        await github.dispatchWorkflow(workflow, targetBranch);
+      }
     }
     await removeLock(github, lockBranchName);
   } catch (error) {
