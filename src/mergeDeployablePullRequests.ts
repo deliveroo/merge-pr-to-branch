@@ -47,7 +47,7 @@ export const mergeDeployablePullRequests = async (
   if (diffResults.stdOutLines.length === 0) {
     info(`No difference between local and remote. Skipping push.`);
     git.resetHardToRemote(targetBranch);
-    return;
+    return false;
   }
   info(
     `Pushing local branch as differences found between local and remote:\n${diffResults.stdOutLines.join(
@@ -56,6 +56,7 @@ export const mergeDeployablePullRequests = async (
   );
   await git.forcePush();
   await processMergeResults(mergeResults, github, requestDeploymentLabelName, deployedLabelName);
+  return true;
 };
 
 const processMergeResults = async (

@@ -14,6 +14,7 @@ const lockBranchNameInputName = "lock-branch-name";
 const lockCheckIntervalInputName = "lock-check-interval-ms";
 const requestLabelNameInputName = "request-label-name";
 const deployedLabelNameInputName = "deployed-label-name";
+const triggerWorkflowsInputName = "trigger-workflows";
 
 export async function run() {
   try {
@@ -52,7 +53,7 @@ export async function run() {
     await retry(acquireThisLock, 5, "Could not acquire lock", lockCheckIntervalInMs);
     const workingDirectory = await mkdtemp("git-workspace");
     const git = new GitCommandManager(workingDirectory, user, token);
-    await mergeDeployablePullRequests(
+    const pushed = await mergeDeployablePullRequests(
       github,
       git,
       targetBranch,
@@ -60,6 +61,16 @@ export async function run() {
       requestLabelName,
       deployedLabelName
     );
+    const triggerWorkflows = getInput(triggerWorkflowsInputName)
+      .split("\n")
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
+    if (pushed && triggerWorkflows.length > 0) {
+      for (const workflow of triggerWorkflows) {
+        info(`Dispatching workflow '${workflow}' against '${targetBranch}'.`);
+        await github.dispatchWorkflow(workflow, targetBranch);
+      }
+    }
     await removeLock(github, lockBranchName);
   } catch (error) {
     setFailed(JSON.stringify(serializeError(error)));
