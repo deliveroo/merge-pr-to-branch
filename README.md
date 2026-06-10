@@ -47,5 +47,8 @@ A single workflow is also fine:
     trigger-workflows: ci-workflows.yml
 ```
 
-Each named workflow must declare `workflow_dispatch:` under its `on:` triggers. Dispatch only fires
-when the merge actually changes `target-branch` — no-op runs are skipped.
+Dispatch only fires when the merge actually changes `target-branch` — no-op runs are skipped.
+
+> [!IMPORTANT]
+> Each named workflow must declare `workflow_dispatch:` under its `on:` triggers.
+> If a `permissions` block is used in the workflow that calls this action, you must include `actions: write` in that list.
