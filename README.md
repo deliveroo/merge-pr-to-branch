@@ -51,4 +51,4 @@ Dispatch only fires when the merge actually changes `target-branch` — no-op ru
 
 > [!IMPORTANT]
 > Each named workflow must declare `workflow_dispatch:` under its `on:` triggers.
-> If a `permissions` block is used in the workflow that calls the this action, you must include `actions: write` in that list.
+> If a `permissions` block is used in the workflow that calls this action, you must include `actions: write` in that list.
