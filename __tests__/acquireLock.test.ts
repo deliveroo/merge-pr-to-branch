@@ -22,7 +22,7 @@ describe("acquireLock", () => {
   it("waits (does not break the lock) when the holding run is still active", async () => {
     const githubApiManager = await createMockGithubApiManager();
     githubApiManager.createLock.mockRejectedValue({ status: 422 });
-    githubApiManager.getLockOwnerRunId.mockResolvedValue(999);
+    githubApiManager.getLockInfo.mockResolvedValue({ sha: "s1", runId: 999 });
     githubApiManager.isRunActive.mockResolvedValue(true);
 
     const result = await acquireLock(githubApiManager, "test", "foo", ourRunId);
@@ -32,11 +32,12 @@ describe("acquireLock", () => {
     expect(githubApiManager.deleteBranch).not.toHaveBeenCalled();
   });
 
-  it("breaks the stale lock when the holding run is no longer active", async () => {
+  it("breaks the stale lock when the holding run is inactive and the SHA is unchanged", async () => {
     const githubApiManager = await createMockGithubApiManager();
     githubApiManager.createLock.mockRejectedValue({ status: 422 });
-    githubApiManager.getLockOwnerRunId.mockResolvedValue(999);
+    githubApiManager.getLockInfo.mockResolvedValue({ sha: "s1", runId: 999 });
     githubApiManager.isRunActive.mockResolvedValue(false);
+    githubApiManager.getBranchCommit.mockResolvedValue("s1"); // unchanged since the check
     githubApiManager.deleteBranch.mockResolvedValue({} as any);
 
     const result = await acquireLock(githubApiManager, "test", "foo", ourRunId);
@@ -45,10 +46,35 @@ describe("acquireLock", () => {
     expect(githubApiManager.deleteBranch).toHaveBeenCalledTimes(1);
   });
 
-  it("waits when the lock owner cannot be determined", async () => {
+  it("does NOT break the lock if it changed hands during the staleness check (TOCTOU guard)", async () => {
     const githubApiManager = await createMockGithubApiManager();
     githubApiManager.createLock.mockRejectedValue({ status: 422 });
-    githubApiManager.getLockOwnerRunId.mockResolvedValue(undefined);
+    githubApiManager.getLockInfo.mockResolvedValue({ sha: "s1", runId: 999 });
+    githubApiManager.isRunActive.mockResolvedValue(false);
+    githubApiManager.getBranchCommit.mockResolvedValue("s2"); // re-acquired by another run
+
+    const result = await acquireLock(githubApiManager, "test", "foo", ourRunId);
+
+    expect(result).toBe(false);
+    expect(githubApiManager.deleteBranch).not.toHaveBeenCalled();
+  });
+
+  it("waits when the lock owner cannot be determined (legacy lock)", async () => {
+    const githubApiManager = await createMockGithubApiManager();
+    githubApiManager.createLock.mockRejectedValue({ status: 422 });
+    githubApiManager.getLockInfo.mockResolvedValue({ sha: "s1", runId: undefined });
+
+    const result = await acquireLock(githubApiManager, "test", "foo", ourRunId);
+
+    expect(result).toBe(false);
+    expect(githubApiManager.isRunActive).not.toHaveBeenCalled();
+    expect(githubApiManager.deleteBranch).not.toHaveBeenCalled();
+  });
+
+  it("waits when the lock cannot be read (missing branch or transient error)", async () => {
+    const githubApiManager = await createMockGithubApiManager();
+    githubApiManager.createLock.mockRejectedValue({ status: 422 });
+    githubApiManager.getLockInfo.mockResolvedValue(undefined);
 
     const result = await acquireLock(githubApiManager, "test", "foo", ourRunId);
 

@@ -47,7 +47,7 @@ export async function run() {
       throw new Error("Missing GITHUB_ACTOR environment variable");
     }
     const runId = Number(process.env.GITHUB_RUN_ID);
-    if (!Number.isInteger(runId)) {
+    if (!Number.isInteger(runId) || runId <= 0) {
       throw new Error("Missing or invalid GITHUB_RUN_ID environment variable");
     }
     const github = new GithubApiManager(token, owner, repo);

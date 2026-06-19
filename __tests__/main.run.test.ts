@@ -4,8 +4,8 @@ import fs from "fs";
 describe("main", () => {
   beforeEach(jest.resetModules);
   afterEach(() => {
-    process.env.GITHUB_ACTOR = undefined;
-    process.env.GITHUB_RUN_ID = undefined;
+    delete process.env.GITHUB_ACTOR;
+    delete process.env.GITHUB_RUN_ID;
   });
   it("waits to acquire lock before execution and removes lock after", async () => {
     // arrange

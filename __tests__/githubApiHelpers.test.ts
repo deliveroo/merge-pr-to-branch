@@ -2,7 +2,7 @@ import {
   getBranchFromRef,
   getBranchRef,
   isRunActive,
-  getLockOwnerRunId,
+  getLockInfo,
   lockCommitMessagePrefix
 } from "../src/githubApiHelpers";
 
@@ -74,7 +74,7 @@ describe("githubHelpers", () => {
     });
   });
 
-  describe("getLockOwnerRunId", () => {
+  describe("getLockInfo", () => {
     const makeClient = (refSha: string | undefined, message: string) =>
       (({
         git: {
@@ -85,17 +85,26 @@ describe("githubHelpers", () => {
           getCommit: jest.fn().mockResolvedValue({ data: { message } })
         }
       } as unknown) as any);
-    it("parses the run id from the lock commit message", async () => {
+    it("returns the sha and parsed run id from the lock commit message", async () => {
       const client = makeClient("sha1", `${lockCommitMessagePrefix}4242`);
-      expect(await getLockOwnerRunId(client, "o", "r", "lock")).toBe(4242);
+      expect(await getLockInfo(client, "o", "r", "lock")).toEqual({ sha: "sha1", runId: 4242 });
     });
-    it("returns undefined for a legacy lock without the marker", async () => {
+    it("returns the sha with undefined runId for a legacy lock without the marker", async () => {
       const client = makeClient("sha1", "some unrelated commit");
-      expect(await getLockOwnerRunId(client, "o", "r", "lock")).toBeUndefined();
+      expect(await getLockInfo(client, "o", "r", "lock")).toEqual({ sha: "sha1", runId: undefined });
     });
     it("returns undefined when the lock branch is missing", async () => {
       const client = makeClient(undefined, "");
-      expect(await getLockOwnerRunId(client, "o", "r", "lock")).toBeUndefined();
+      expect(await getLockInfo(client, "o", "r", "lock")).toBeUndefined();
+    });
+    it("returns undefined (waits) on a transient read error", async () => {
+      const client = ({
+        git: {
+          getRef: jest.fn().mockResolvedValue({ status: 200, data: { object: { sha: "sha1" } } }),
+          getCommit: jest.fn().mockRejectedValue({ status: 502 })
+        }
+      } as unknown) as any;
+      expect(await getLockInfo(client, "o", "r", "lock")).toBeUndefined();
     });
   });
 });

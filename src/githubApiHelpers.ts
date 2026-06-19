@@ -80,7 +80,9 @@ export const createLockBranch = async (
     parents: [baseSha]
   });
   // createRef fails with 422 if the branch already exists — that is how lock
-  // contention is detected by the caller.
+  // contention is detected by the caller. On a contended attempt the commit
+  // created just above is left unreferenced; this is intentional (it keeps the
+  // lock branch always run-id-stamped) and GitHub garbage-collects it.
   return githubClient.git.createRef({
     owner,
     repo,
@@ -89,29 +91,37 @@ export const createLockBranch = async (
   });
 };
 
-// Returns the workflow run id recorded on the lock branch, or undefined if the
-// branch is missing or wasn't created by this action (e.g. a legacy lock).
-export const getLockOwnerRunId = async (
+// Reads the lock branch's current commit SHA and the workflow run id recorded in
+// its commit message. Returns undefined if the branch is missing, or if the read
+// fails for any reason — a transient API error on the contention path must not
+// fail a run that is merely waiting for the lock, so we degrade to waiting (the
+// same conservative stance as isRunActive). runId is undefined for a legacy lock
+// that predates run-id stamping.
+export const getLockInfo = async (
   githubClient: Github,
   owner: string,
   repo: string,
   branch: string
-) => {
-  const branchRef = await getBranchRef(githubClient, owner, repo, branch);
-  if (!("data" in branchRef)) {
+): Promise<{ sha: string; runId: number | undefined } | undefined> => {
+  try {
+    const branchRef = await getBranchRef(githubClient, owner, repo, branch);
+    if (!("data" in branchRef)) {
+      return undefined;
+    }
+    const sha = branchRef.data.object.sha;
+    const commit = await githubClient.git.getCommit({ owner, repo, commit_sha: sha });
+    const message = commit.data.message || "";
+    const parsed = message.startsWith(lockCommitMessagePrefix)
+      ? Number(message.slice(lockCommitMessagePrefix.length).trim())
+      : NaN;
+    return { sha, runId: Number.isInteger(parsed) ? parsed : undefined };
+  } catch (error) {
+    if (error && (error as { status?: number }).status === 404) {
+      return undefined;
+    }
+    warning(`Could not read lock '${branch}'; treating it as held and waiting.`);
     return undefined;
   }
-  const commit = await githubClient.git.getCommit({
-    owner,
-    repo,
-    commit_sha: branchRef.data.object.sha
-  });
-  const message = commit.data.message || "";
-  if (!message.startsWith(lockCommitMessagePrefix)) {
-    return undefined;
-  }
-  const runId = Number(message.slice(lockCommitMessagePrefix.length).trim());
-  return Number.isInteger(runId) ? runId : undefined;
 };
 
 // A run is active unless it has completed. A 404 means the run no longer exists,

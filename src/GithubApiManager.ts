@@ -3,7 +3,7 @@ import {
   getBranchCommit,
   createBranch,
   createLockBranch,
-  getLockOwnerRunId,
+  getLockInfo,
   isRunActive,
   getBranchRef,
   formatHeadFromBranch,
@@ -30,8 +30,8 @@ export class GithubApiManager {
   public createLock(branch: string, baseBranch: string, runId: number) {
     return createLockBranch(this.client, this.owner, this.repo, branch, baseBranch, runId);
   }
-  public getLockOwnerRunId(branch: string) {
-    return getLockOwnerRunId(this.client, this.owner, this.repo, branch);
+  public getLockInfo(branch: string) {
+    return getLockInfo(this.client, this.owner, this.repo, branch);
   }
   public isRunActive(runId: number) {
     return isRunActive(this.client, this.owner, this.repo, runId);
