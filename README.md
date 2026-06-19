@@ -53,27 +53,28 @@ Dispatch only fires when the merge actually changes `target-branch` — no-op ru
 > Each named workflow must declare `workflow_dispatch:` under its `on:` triggers.
 > If a `permissions` block is used in the workflow that calls this action, you must include `actions: write` in that list.
 
-## Locking
+## Concurrency
 
-To stop concurrent runs from racing each other, the action serialises execution
-with a **lock branch** (default name: `lock`). Acquiring the lock means creating
-that branch; whoever creates it first holds the lock, and everyone else waits.
-The lock commit records the `GITHUB_RUN_ID` of the run that holds it.
+This action force-pushes the `target-branch`, so two runs targeting the same
+branch must never run at once. Mutual exclusion is handled by the GitHub Actions
+[`concurrency`](https://docs.github.com/en/actions/using-jobs/using-concurrency)
+group in the calling workflow — **not** by the action itself:
 
-The lock is released in a `finally` block, so a run that fails part-way still
-cleans up after itself. If a run is hard-killed (cancelled, timed out, OOM) it
-can leave the branch behind. To recover from that automatically, when a run finds
-the lock already held it checks whether the **owning run is still active** — if
-that run has finished, the lock is treated as orphaned and broken so work can
-continue.
-
-This staleness check calls the Actions API, so the token needs `actions: read`
-(the default `GITHUB_TOKEN` has it unless your repo restricts default
-permissions). If the status can't be read, the action errs on the safe side and
-keeps waiting rather than breaking the lock.
-
-**Break-glass:** to clear a stuck lock manually, delete the branch:
-
-```bash
-gh api -X DELETE repos/<owner>/<repo>/git/refs/heads/lock
+```yaml
+concurrency:
+  group: merge-pr-to-branch-${{ github.workflow }}
+  cancel-in-progress: false
 ```
+
+- GitHub guarantees only one run per group proceeds; others queue. No lock
+  branch, nothing to leak, nothing to clean up.
+- Keying the group on `${{ github.workflow }}` gives each workflow file its own
+  lane. Since one workflow file maps to one `target-branch`, runs that merge into
+  **different** branches proceed in parallel while runs into the **same** branch
+  are serialised. Do **not** key on `github.ref`/`github.head_ref` — on a
+  `pull_request` event those are the PR's ref, which would give every PR its own
+  group and disable serialisation entirely.
+- `cancel-in-progress: false` queues instead of cancelling. GitHub keeps only one
+  pending run per group, but that's fine: each run reconciles **all** currently
+  labelled PRs, so a dropped intermediate run never drops work — the surviving
+  run picks everything up.

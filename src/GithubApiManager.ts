@@ -2,9 +2,6 @@ import Github from "@octokit/rest";
 import {
   getBranchCommit,
   createBranch,
-  createLockBranch,
-  getLockInfo,
-  isRunActive,
   getBranchRef,
   formatHeadFromBranch,
   getAllPaginatedItems,
@@ -26,15 +23,6 @@ export class GithubApiManager {
   }
   public createBranch(branch: string, baseBranch: string) {
     return createBranch(this.client, this.owner, this.repo, branch, baseBranch);
-  }
-  public createLock(branch: string, baseBranch: string, runId: number) {
-    return createLockBranch(this.client, this.owner, this.repo, branch, baseBranch, runId);
-  }
-  public getLockInfo(branch: string) {
-    return getLockInfo(this.client, this.owner, this.repo, branch);
-  }
-  public isRunActive(runId: number) {
-    return isRunActive(this.client, this.owner, this.repo, runId);
   }
   public getBranchRef(branch: string) {
     return getBranchRef(this.client, this.owner, this.repo, branch);

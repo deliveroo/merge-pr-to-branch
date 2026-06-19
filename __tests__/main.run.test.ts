@@ -5,9 +5,9 @@ describe("main", () => {
   beforeEach(jest.resetModules);
   afterEach(() => {
     delete process.env.GITHUB_ACTOR;
-    delete process.env.GITHUB_RUN_ID;
   });
-  it("waits to acquire lock before execution and removes lock after", async () => {
+
+  it("merges deployable pull requests and reports no failure", async () => {
     // arrange
     const { getInput, info, setFailed } = await createMock<typeof import("@actions/core")>(
       "@actions/core"
@@ -22,14 +22,9 @@ describe("main", () => {
     const { GitCommandManager } = await createMock<typeof import("../src/GitCommandManager")>(
       "../src/GitCommandManager"
     );
-    const { acquireLock, removeLock } = await createMock<typeof import("../src/acquireLock")>(
-      "../src/acquireLock"
-    );
 
     const inputValues = new Map([
       ["target-branch", "target-branch-value"],
-      ["lock-branch-name", "lock-branch-name-value"],
-      ["lock-check-interval-ms", "1"],
       ["repo-token", "repo-token-value"],
       ["request-label-name", "request-label"],
       ["deployed-label-name", "deployed-label"]
@@ -50,11 +45,6 @@ describe("main", () => {
 
     jest.spyOn(fs.promises, "mkdtemp").mockResolvedValue("temp_dir");
     process.env.GITHUB_ACTOR = "github_actor";
-    process.env.GITHUB_RUN_ID = "12345";
-
-    acquireLock.mockResolvedValueOnce(false);
-    acquireLock.mockResolvedValueOnce(false);
-    acquireLock.mockResolvedValue(true);
 
     // act
     const { run } = await import("../src/main.run");
@@ -82,34 +72,14 @@ describe("main", () => {
       ]
     `);
     expect(setFailed).toHaveBeenCalledTimes(0);
-    expect(acquireLock).toHaveBeenCalledTimes(3);
     expect(mergeDeployablePullRequests).toHaveBeenCalledTimes(1);
-    expect(removeLock).toHaveBeenCalledTimes(1);
-    expect(getInput.mock.calls).toMatchInlineSnapshot(`
-      Array [
-        Array [
-          "target-branch",
-        ],
-        Array [
-          "request-label-name",
-        ],
-        Array [
-          "deployed-label-name",
-        ],
-        Array [
-          "repo-token",
-        ],
-        Array [
-          "lock-branch-name",
-        ],
-        Array [
-          "lock-check-interval-ms",
-        ],
-        Array [
-          "trigger-workflows",
-        ],
-      ]
-    `);
+    expect(getInput.mock.calls.map(call => call[0])).toEqual([
+      "target-branch",
+      "request-label-name",
+      "deployed-label-name",
+      "repo-token",
+      "trigger-workflows"
+    ]);
     expect(info.mock.calls).toMatchInlineSnapshot(`
       Array [
         Array [
@@ -161,14 +131,9 @@ describe("main", () => {
       typeof import("../src/mergeDeployablePullRequests")
     >("../src/mergeDeployablePullRequests");
     await createMock<typeof import("../src/GitCommandManager")>("../src/GitCommandManager");
-    const { acquireLock } = await createMock<typeof import("../src/acquireLock")>(
-      "../src/acquireLock"
-    );
 
     const inputValues = new Map([
       ["target-branch", "target-branch-value"],
-      ["lock-branch-name", "lock-branch-name-value"],
-      ["lock-check-interval-ms", "1"],
       ["repo-token", "repo-token-value"],
       ["request-label-name", "request-label"],
       ["deployed-label-name", "deployed-label"],
@@ -184,8 +149,6 @@ describe("main", () => {
     getBaseBranch.mockReturnValue("base_branch");
     jest.spyOn(fs.promises, "mkdtemp").mockResolvedValue("temp_dir");
     process.env.GITHUB_ACTOR = "github_actor";
-    process.env.GITHUB_RUN_ID = "12345";
-    acquireLock.mockResolvedValue(true);
     mergeDeployablePullRequests.mockResolvedValue(pushed);
 
     // act
@@ -202,7 +165,8 @@ describe("main", () => {
     });
   });
 
-  const arrangeFailureRun = async () => {
+  it("reports the error when merging throws", async () => {
+    // arrange
     const { getInput, setFailed } = await createMock<typeof import("@actions/core")>(
       "@actions/core"
     );
@@ -212,14 +176,9 @@ describe("main", () => {
       typeof import("../src/mergeDeployablePullRequests")
     >("../src/mergeDeployablePullRequests");
     await createMock<typeof import("../src/GitCommandManager")>("../src/GitCommandManager");
-    const { acquireLock, removeLock } = await createMock<typeof import("../src/acquireLock")>(
-      "../src/acquireLock"
-    );
 
     const inputValues = new Map([
       ["target-branch", "target-branch-value"],
-      ["lock-branch-name", "lock-branch-name-value"],
-      ["lock-check-interval-ms", "1"],
       ["repo-token", "repo-token-value"],
       ["request-label-name", "request-label"],
       ["deployed-label-name", "deployed-label"]
@@ -232,42 +191,14 @@ describe("main", () => {
     getBaseBranch.mockReturnValue("base_branch");
     jest.spyOn(fs.promises, "mkdtemp").mockResolvedValue("temp_dir");
     process.env.GITHUB_ACTOR = "github_actor";
-    process.env.GITHUB_RUN_ID = "12345";
-    acquireLock.mockResolvedValue(true);
     mergeDeployablePullRequests.mockRejectedValue(new Error("boom"));
-    return { setFailed, removeLock };
-  };
-
-  it("releases the lock and reports the original error when merging throws", async () => {
-    // arrange
-    const { setFailed, removeLock } = await arrangeFailureRun();
-    removeLock.mockResolvedValue(undefined);
 
     // act
     const { run } = await import("../src/main.run");
     await run();
 
-    // assert: lock released even though the merge failed, and the original
-    // error (not a lock-release error) is what gets reported.
-    expect(removeLock).toHaveBeenCalledTimes(1);
+    // assert
     expect(setFailed).toHaveBeenCalledTimes(1);
     expect(setFailed.mock.calls[0][0]).toContain("boom");
-  });
-
-  it("still reports the original error when releasing the lock also fails", async () => {
-    // arrange: both the merge and the lock release throw.
-    const { setFailed, removeLock } = await arrangeFailureRun();
-    removeLock.mockRejectedValue(new Error("lock delete failed"));
-
-    // act
-    const { run } = await import("../src/main.run");
-    await run();
-
-    // assert: the release failure must not mask the root cause.
-    expect(removeLock).toHaveBeenCalledTimes(1);
-    expect(setFailed).toHaveBeenCalledTimes(1);
-    const reported = setFailed.mock.calls[0][0] as string;
-    expect(reported).toContain("boom");
-    expect(reported).not.toContain("lock delete failed");
   });
 });
