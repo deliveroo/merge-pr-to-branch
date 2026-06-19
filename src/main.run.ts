@@ -45,10 +45,14 @@ export async function run() {
     if (!user) {
       throw new Error("Missing GITHUB_ACTOR environment variable");
     }
+    const runId = Number(process.env.GITHUB_RUN_ID);
+    if (!Number.isInteger(runId)) {
+      throw new Error("Missing or invalid GITHUB_RUN_ID environment variable");
+    }
     const github = new GithubApiManager(token, owner, repo);
     const lockBranchName = getInput(lockBranchNameInputName);
     const lockCheckIntervalInMs = Number(getInput(lockCheckIntervalInputName));
-    const acquireThisLock = () => acquireLock(github, lockBranchName, baseBranch);
+    const acquireThisLock = () => acquireLock(github, lockBranchName, baseBranch, runId);
     await retry(acquireThisLock, 5, "Could not acquire lock", lockCheckIntervalInMs);
     // The lock is a remote-branch mutex with no auto-expiry. Once acquired it
     // MUST always be released — otherwise a failure mid-run (e.g. a transient

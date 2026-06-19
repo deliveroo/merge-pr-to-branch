@@ -1,5 +1,6 @@
 import Github from "@octokit/rest";
 import _ from "lodash";
+import { warning } from "@actions/core";
 
 export const getBranchFromRef = (ref: string) => _.last(_.split(ref, "/"));
 export const formatHeadFromBranch = (branch: string) => `heads/${branch}`;
@@ -50,6 +51,95 @@ export const createBranch = async (
     ref: formatRefFromBranch(branch),
     sha
   });
+};
+
+// The lock branch records which workflow run holds it, so a later run can tell
+// whether the lock is genuinely held or was orphaned by a run that died before
+// releasing it. We point the branch at a commit whose message embeds the run id.
+export const lockCommitMessagePrefix = "merge-pr-to-branch lock acquired by run ";
+
+export const createLockBranch = async (
+  githubClient: Github,
+  owner: string,
+  repo: string,
+  branch: string,
+  sourceBranch: string,
+  runId: number
+) => {
+  const sourceRef = await getBranchRef(githubClient, owner, repo, sourceBranch);
+  if (!("data" in sourceRef)) {
+    throw new Error(`sourceBranch: '${sourceBranch}' not found.`);
+  }
+  const baseSha = sourceRef.data.object.sha;
+  const baseCommit = await githubClient.git.getCommit({ owner, repo, commit_sha: baseSha });
+  const lockCommit = await githubClient.git.createCommit({
+    owner,
+    repo,
+    message: `${lockCommitMessagePrefix}${runId}`,
+    tree: baseCommit.data.tree.sha,
+    parents: [baseSha]
+  });
+  // createRef fails with 422 if the branch already exists — that is how lock
+  // contention is detected by the caller.
+  return githubClient.git.createRef({
+    owner,
+    repo,
+    ref: formatRefFromBranch(branch),
+    sha: lockCommit.data.sha
+  });
+};
+
+// Returns the workflow run id recorded on the lock branch, or undefined if the
+// branch is missing or wasn't created by this action (e.g. a legacy lock).
+export const getLockOwnerRunId = async (
+  githubClient: Github,
+  owner: string,
+  repo: string,
+  branch: string
+) => {
+  const branchRef = await getBranchRef(githubClient, owner, repo, branch);
+  if (!("data" in branchRef)) {
+    return undefined;
+  }
+  const commit = await githubClient.git.getCommit({
+    owner,
+    repo,
+    commit_sha: branchRef.data.object.sha
+  });
+  const message = commit.data.message || "";
+  if (!message.startsWith(lockCommitMessagePrefix)) {
+    return undefined;
+  }
+  const runId = Number(message.slice(lockCommitMessagePrefix.length).trim());
+  return Number.isInteger(runId) ? runId : undefined;
+};
+
+// A run is active unless it has completed. A 404 means the run no longer exists,
+// so the lock it left behind is safe to break. Any other failure (e.g. the token
+// lacks `actions: read`) is treated conservatively as "still active" so we never
+// break a lock we can't actually prove is orphaned — degrading to plain waiting.
+export const isRunActive = async (
+  githubClient: Github,
+  owner: string,
+  repo: string,
+  runId: number
+) => {
+  try {
+    const response = await githubClient.request(
+      "GET /repos/{owner}/{repo}/actions/runs/{run_id}",
+      { owner, repo, run_id: runId }
+    );
+    return response.data.status !== "completed";
+  } catch (error) {
+    if (error && (error as { status?: number }).status === 404) {
+      return false;
+    }
+    warning(
+      `Could not determine status of run ${runId}; treating the lock as held. ` +
+        `Ensure the token has 'actions: read' permission.`
+    );
+    return true;
+  }
 };
 
 type ExtractGithubResponseDataType<T> = T extends {

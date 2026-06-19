@@ -5,6 +5,7 @@ describe("main", () => {
   beforeEach(jest.resetModules);
   afterEach(() => {
     process.env.GITHUB_ACTOR = undefined;
+    process.env.GITHUB_RUN_ID = undefined;
   });
   it("waits to acquire lock before execution and removes lock after", async () => {
     // arrange
@@ -49,6 +50,7 @@ describe("main", () => {
 
     jest.spyOn(fs.promises, "mkdtemp").mockResolvedValue("temp_dir");
     process.env.GITHUB_ACTOR = "github_actor";
+    process.env.GITHUB_RUN_ID = "12345";
 
     acquireLock.mockResolvedValueOnce(false);
     acquireLock.mockResolvedValueOnce(false);
@@ -145,6 +147,7 @@ describe("main", () => {
     getBaseBranch.mockReturnValue("base_branch");
     jest.spyOn(fs.promises, "mkdtemp").mockResolvedValue("temp_dir");
     process.env.GITHUB_ACTOR = "github_actor";
+    process.env.GITHUB_RUN_ID = "12345";
     acquireLock.mockResolvedValue(true);
     mergeDeployablePullRequests.mockRejectedValue(new Error("boom"));
 

@@ -7,6 +7,11 @@ on:
       branches:
         - main
 
+permissions:
+    contents: write      # create/delete the target and lock branches
+    pull-requests: write # manage labels and comments on PRs
+    actions: read        # check whether a stale lock's owning run is still active
+
 jobs:
     build:
       runs-on: ubuntu-latest

@@ -1,4 +1,12 @@
-import { getBranchFromRef, getBranchRef } from "../src/githubApiHelpers";
+import {
+  getBranchFromRef,
+  getBranchRef,
+  isRunActive,
+  getLockOwnerRunId,
+  lockCommitMessagePrefix
+} from "../src/githubApiHelpers";
+
+jest.mock("@actions/core", () => ({ warning: jest.fn(), info: jest.fn() }));
 
 describe("githubHelpers", () => {
   it("getBranchFromRef returns last segment of ref", () => {
@@ -44,5 +52,50 @@ describe("githubHelpers", () => {
       ref: `heads/${branch}`
     });
     expect(result).toEqual(expectedResult);
+  });
+
+  describe("isRunActive", () => {
+    const makeClient = (request: jest.Mock) => ({ request } as any);
+    it("returns true when the run has not completed", async () => {
+      const client = makeClient(jest.fn().mockResolvedValue({ data: { status: "in_progress" } }));
+      expect(await isRunActive(client, "o", "r", 1)).toBe(true);
+    });
+    it("returns false when the run has completed", async () => {
+      const client = makeClient(jest.fn().mockResolvedValue({ data: { status: "completed" } }));
+      expect(await isRunActive(client, "o", "r", 1)).toBe(false);
+    });
+    it("returns false when the run no longer exists (404)", async () => {
+      const client = makeClient(jest.fn().mockRejectedValue({ status: 404 }));
+      expect(await isRunActive(client, "o", "r", 1)).toBe(false);
+    });
+    it("treats the run as active when status cannot be determined (e.g. 403)", async () => {
+      const client = makeClient(jest.fn().mockRejectedValue({ status: 403 }));
+      expect(await isRunActive(client, "o", "r", 1)).toBe(true);
+    });
+  });
+
+  describe("getLockOwnerRunId", () => {
+    const makeClient = (refSha: string | undefined, message: string) =>
+      (({
+        git: {
+          getRef:
+            refSha === undefined
+              ? jest.fn().mockRejectedValue({ status: 404 })
+              : jest.fn().mockResolvedValue({ status: 200, data: { object: { sha: refSha } } }),
+          getCommit: jest.fn().mockResolvedValue({ data: { message } })
+        }
+      } as unknown) as any);
+    it("parses the run id from the lock commit message", async () => {
+      const client = makeClient("sha1", `${lockCommitMessagePrefix}4242`);
+      expect(await getLockOwnerRunId(client, "o", "r", "lock")).toBe(4242);
+    });
+    it("returns undefined for a legacy lock without the marker", async () => {
+      const client = makeClient("sha1", "some unrelated commit");
+      expect(await getLockOwnerRunId(client, "o", "r", "lock")).toBeUndefined();
+    });
+    it("returns undefined when the lock branch is missing", async () => {
+      const client = makeClient(undefined, "");
+      expect(await getLockOwnerRunId(client, "o", "r", "lock")).toBeUndefined();
+    });
   });
 });
