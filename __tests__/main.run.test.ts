@@ -113,4 +113,49 @@ describe("main", () => {
       ]
     `);
   });
+
+  it("removes the lock and reports failure when merging throws", async () => {
+    // arrange
+    const { getInput, setFailed } = await createMock<typeof import("@actions/core")>(
+      "@actions/core"
+    );
+    const actions_github = await createMock<typeof import("@actions/github")>("@actions/github");
+    await createMock<typeof import("../src/GithubApiManager")>("../src/GithubApiManager");
+    const { mergeDeployablePullRequests, getBaseBranch } = await createMock<
+      typeof import("../src/mergeDeployablePullRequests")
+    >("../src/mergeDeployablePullRequests");
+    await createMock<typeof import("../src/GitCommandManager")>("../src/GitCommandManager");
+    const { acquireLock, removeLock } = await createMock<typeof import("../src/acquireLock")>(
+      "../src/acquireLock"
+    );
+
+    const inputValues = new Map([
+      ["target-branch", "target-branch-value"],
+      ["lock-branch-name", "lock-branch-name-value"],
+      ["lock-check-interval-ms", "1"],
+      ["repo-token", "repo-token-value"],
+      ["request-label-name", "request-label"],
+      ["deployed-label-name", "deployed-label"]
+    ]);
+    getInput.mockImplementation(key => inputValues.get(key) || "");
+    const mockContext = {
+      payload: { repository: { owner: { login: "owner_login" }, name: "repo_name" } }
+    } as any;
+    Object.defineProperty(actions_github, "context", { get: () => mockContext });
+    getBaseBranch.mockReturnValue("base_branch");
+    jest.spyOn(fs.promises, "mkdtemp").mockResolvedValue("temp_dir");
+    process.env.GITHUB_ACTOR = "github_actor";
+    acquireLock.mockResolvedValue(true);
+    mergeDeployablePullRequests.mockRejectedValue(new Error("boom"));
+
+    // act
+    const { run } = await import("../src/main.run");
+    await run();
+
+    // assert: the lock must be released even though the merge failed,
+    // otherwise it leaks and deadlocks every subsequent run.
+    expect(mergeDeployablePullRequests).toHaveBeenCalledTimes(1);
+    expect(removeLock).toHaveBeenCalledTimes(1);
+    expect(setFailed).toHaveBeenCalledTimes(1);
+  });
 });

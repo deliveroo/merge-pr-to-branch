@@ -50,17 +50,23 @@ export async function run() {
     const lockCheckIntervalInMs = Number(getInput(lockCheckIntervalInputName));
     const acquireThisLock = () => acquireLock(github, lockBranchName, baseBranch);
     await retry(acquireThisLock, 5, "Could not acquire lock", lockCheckIntervalInMs);
-    const workingDirectory = await mkdtemp("git-workspace");
-    const git = new GitCommandManager(workingDirectory, user, token);
-    await mergeDeployablePullRequests(
-      github,
-      git,
-      targetBranch,
-      baseBranch,
-      requestLabelName,
-      deployedLabelName
-    );
-    await removeLock(github, lockBranchName);
+    // The lock is a remote-branch mutex with no auto-expiry. Once acquired it
+    // MUST always be released — otherwise a failure mid-run (e.g. a transient
+    // GitHub 5xx) leaks the lock branch and deadlocks every subsequent run.
+    try {
+      const workingDirectory = await mkdtemp("git-workspace");
+      const git = new GitCommandManager(workingDirectory, user, token);
+      await mergeDeployablePullRequests(
+        github,
+        git,
+        targetBranch,
+        baseBranch,
+        requestLabelName,
+        deployedLabelName
+      );
+    } finally {
+      await removeLock(github, lockBranchName);
+    }
   } catch (error) {
     setFailed(JSON.stringify(serializeError(error)));
   }
