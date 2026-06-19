@@ -1,4 +1,4 @@
-import { getInput, info, setFailed } from "@actions/core";
+import { getInput, info, warning, setFailed } from "@actions/core";
 import { context } from "@actions/github";
 import { serializeError } from "serialize-error";
 import { GithubApiManager } from "./GithubApiManager";
@@ -14,6 +14,7 @@ const lockBranchNameInputName = "lock-branch-name";
 const lockCheckIntervalInputName = "lock-check-interval-ms";
 const requestLabelNameInputName = "request-label-name";
 const deployedLabelNameInputName = "deployed-label-name";
+const triggerWorkflowsInputName = "trigger-workflows";
 
 export async function run() {
   try {
@@ -60,7 +61,7 @@ export async function run() {
     try {
       const workingDirectory = await mkdtemp("git-workspace");
       const git = new GitCommandManager(workingDirectory, user, token);
-      await mergeDeployablePullRequests(
+      const pushed = await mergeDeployablePullRequests(
         github,
         git,
         targetBranch,
@@ -68,8 +69,26 @@ export async function run() {
         requestLabelName,
         deployedLabelName
       );
+      const triggerWorkflows = getInput(triggerWorkflowsInputName)
+        .split("\n")
+        .map(s => s.trim())
+        .filter(s => s.length > 0);
+      if (pushed && triggerWorkflows.length > 0) {
+        for (const workflow of triggerWorkflows) {
+          info(`Dispatching workflow '${workflow}' against '${targetBranch}'.`);
+          await github.dispatchWorkflow(workflow, targetBranch);
+        }
+      }
     } finally {
-      await removeLock(github, lockBranchName);
+      // Release the lock, but don't let a release failure mask the original
+      // error from the try body: with a bare `await` here, JS finally semantics
+      // would replace a pending exception with the release error, hiding the
+      // real cause (e.g. the 502 that aborted the run). Report it separately.
+      try {
+        await removeLock(github, lockBranchName);
+      } catch (lockError) {
+        warning(`Failed to release lock: ${JSON.stringify(serializeError(lockError))}`);
+      }
     }
   } catch (error) {
     setFailed(JSON.stringify(serializeError(error)));

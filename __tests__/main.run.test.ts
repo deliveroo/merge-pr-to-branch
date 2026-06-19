@@ -105,6 +105,9 @@ describe("main", () => {
         Array [
           "lock-check-interval-ms",
         ],
+        Array [
+          "trigger-workflows",
+        ],
       ]
     `);
     expect(info.mock.calls).toMatchInlineSnapshot(`
@@ -116,8 +119,90 @@ describe("main", () => {
     `);
   });
 
-  it("removes the lock and reports failure when merging throws", async () => {
+  it.each([
+    {
+      name: "dispatches single workflow when input set and merge pushed",
+      triggerWorkflowsInput: "ci-workflows.yml",
+      pushed: true,
+      expectedDispatched: ["ci-workflows.yml"]
+    },
+    {
+      name: "dispatches each workflow on a newline-separated list",
+      triggerWorkflowsInput: "ci-workflows.yml\nintegration.yml\n  e2e.yml  ",
+      pushed: true,
+      expectedDispatched: ["ci-workflows.yml", "integration.yml", "e2e.yml"]
+    },
+    {
+      name: "skips dispatch when merge did not push",
+      triggerWorkflowsInput: "ci-workflows.yml",
+      pushed: false,
+      expectedDispatched: []
+    },
+    {
+      name: "skips dispatch when input is empty",
+      triggerWorkflowsInput: "",
+      pushed: true,
+      expectedDispatched: []
+    },
+    {
+      name: "skips dispatch when input is whitespace-only",
+      triggerWorkflowsInput: "  \n\n  ",
+      pushed: true,
+      expectedDispatched: []
+    }
+  ])("$name", async ({ triggerWorkflowsInput, pushed, expectedDispatched }) => {
     // arrange
+    const { getInput } = await createMock<typeof import("@actions/core")>("@actions/core");
+    const actions_github = await createMock<typeof import("@actions/github")>("@actions/github");
+    const { GithubApiManager } = await createMock<typeof import("../src/GithubApiManager")>(
+      "../src/GithubApiManager"
+    );
+    const { mergeDeployablePullRequests, getBaseBranch } = await createMock<
+      typeof import("../src/mergeDeployablePullRequests")
+    >("../src/mergeDeployablePullRequests");
+    await createMock<typeof import("../src/GitCommandManager")>("../src/GitCommandManager");
+    const { acquireLock } = await createMock<typeof import("../src/acquireLock")>(
+      "../src/acquireLock"
+    );
+
+    const inputValues = new Map([
+      ["target-branch", "target-branch-value"],
+      ["lock-branch-name", "lock-branch-name-value"],
+      ["lock-check-interval-ms", "1"],
+      ["repo-token", "repo-token-value"],
+      ["request-label-name", "request-label"],
+      ["deployed-label-name", "deployed-label"],
+      ["trigger-workflows", triggerWorkflowsInput]
+    ]);
+    getInput.mockImplementation(key => inputValues.get(key) || "");
+    const mockContext = {
+      payload: {
+        repository: { owner: { login: "owner_login" }, name: "repo_name" }
+      }
+    } as any;
+    Object.defineProperty(actions_github, "context", { get: () => mockContext });
+    getBaseBranch.mockReturnValue("base_branch");
+    jest.spyOn(fs.promises, "mkdtemp").mockResolvedValue("temp_dir");
+    process.env.GITHUB_ACTOR = "github_actor";
+    process.env.GITHUB_RUN_ID = "12345";
+    acquireLock.mockResolvedValue(true);
+    mergeDeployablePullRequests.mockResolvedValue(pushed);
+
+    // act
+    const { run } = await import("../src/main.run");
+    await run();
+
+    // assert
+    const githubInstance = GithubApiManager.mock.instances[0] as jest.Mocked<
+      import("../src/GithubApiManager").GithubApiManager
+    >;
+    expect(githubInstance.dispatchWorkflow).toHaveBeenCalledTimes(expectedDispatched.length);
+    expectedDispatched.forEach(workflow => {
+      expect(githubInstance.dispatchWorkflow).toHaveBeenCalledWith(workflow, "target-branch-value");
+    });
+  });
+
+  const arrangeFailureRun = async () => {
     const { getInput, setFailed } = await createMock<typeof import("@actions/core")>(
       "@actions/core"
     );
@@ -150,15 +235,39 @@ describe("main", () => {
     process.env.GITHUB_RUN_ID = "12345";
     acquireLock.mockResolvedValue(true);
     mergeDeployablePullRequests.mockRejectedValue(new Error("boom"));
+    return { setFailed, removeLock };
+  };
+
+  it("releases the lock and reports the original error when merging throws", async () => {
+    // arrange
+    const { setFailed, removeLock } = await arrangeFailureRun();
+    removeLock.mockResolvedValue(undefined);
 
     // act
     const { run } = await import("../src/main.run");
     await run();
 
-    // assert: the lock must be released even though the merge failed,
-    // otherwise it leaks and deadlocks every subsequent run.
-    expect(mergeDeployablePullRequests).toHaveBeenCalledTimes(1);
+    // assert: lock released even though the merge failed, and the original
+    // error (not a lock-release error) is what gets reported.
     expect(removeLock).toHaveBeenCalledTimes(1);
     expect(setFailed).toHaveBeenCalledTimes(1);
+    expect(setFailed.mock.calls[0][0]).toContain("boom");
+  });
+
+  it("still reports the original error when releasing the lock also fails", async () => {
+    // arrange: both the merge and the lock release throw.
+    const { setFailed, removeLock } = await arrangeFailureRun();
+    removeLock.mockRejectedValue(new Error("lock delete failed"));
+
+    // act
+    const { run } = await import("../src/main.run");
+    await run();
+
+    // assert: the release failure must not mask the root cause.
+    expect(removeLock).toHaveBeenCalledTimes(1);
+    expect(setFailed).toHaveBeenCalledTimes(1);
+    const reported = setFailed.mock.calls[0][0] as string;
+    expect(reported).toContain("boom");
+    expect(reported).not.toContain("lock delete failed");
   });
 });
