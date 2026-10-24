@@ -7,20 +7,20 @@ on:
       branches:
         - main
 
-# Serialise runs that merge into the same target branch so they never
-# force-push concurrently. One workflow file == one target branch, so keying the
-# group on the workflow gives a separate lane per target branch automatically.
+# This template targets staging. Every workflow targeting staging must use this
+# same stable group; choose a different literal group for each other target branch.
 concurrency:
-    group: merge-pr-to-branch-${{ github.workflow }}
+    group: merge-pr-to-branch-staging
     cancel-in-progress: false
 
 permissions:
     contents: write      # update the target branch
     pull-requests: write # manage labels and comments on PRs
+    # actions: write     # uncomment if trigger-workflows is configured
 
 jobs:
     build:
       runs-on: ubuntu-latest
       steps:
         - uses: actions/checkout@v3
-        - uses: deliveroo/merge-pr-to-branch@v6
+        - uses: deliveroo/merge-pr-to-branch@v9
