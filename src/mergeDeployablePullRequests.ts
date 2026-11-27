@@ -21,7 +21,7 @@ export const mergeDeployablePullRequests = async (
   requestDeploymentLabelName: string,
   deployedLabelName: string
 ) => {
-  const mergeablePullRequests = await getMergablePullRequests(
+  const mergeablePullRequests = await getMergeablePullRequests(
     github,
     baseBranch,
     targetBranch,
@@ -86,7 +86,7 @@ const processMergeResults = async (
     )
   );
 
-const getMergablePullRequests = async (
+const getMergeablePullRequests = async (
   github: GithubApiManager,
   baseBranch: string,
   targetBranch: string,
@@ -125,7 +125,7 @@ const getMergablePullRequests = async (
     } else {
       info(`skipping unmergeable pull request #${number}.`);
       if (hasLabel(labels, deployedLabelName)) {
-        info(`Adding pull request #${number} to be removed due to umergeable.`);
+        info(`Adding pull request #${number} to be removed due to unmergeable.`);
         prsToRemove.push({
           reason: `Removing pull request from ${targetBranch} due to unmergeable PR.`,
           pull_number: number
