@@ -3,7 +3,7 @@ version: 2
 jobs:
   build:
     docker:
-      - image: deliveroo/circleci:4.17.2
+      - image: deliveroo/circleci:4.17.2@sha256:9c53b7c95a94e800352d5aa53befdbfcb1641f5a17d5028b4013a07ffba51373
 
     steps:
       - checkout
