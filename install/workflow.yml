@@ -7,6 +7,17 @@ on:
       branches:
         - main
 
+# Serialise runs that merge into the same target branch so they never
+# force-push concurrently. One workflow file == one target branch, so keying the
+# group on the workflow gives a separate lane per target branch automatically.
+concurrency:
+    group: merge-pr-to-branch-${{ github.workflow }}
+    cancel-in-progress: false
+
+permissions:
+    contents: write      # update the target branch
+    pull-requests: write # manage labels and comments on PRs
+
 jobs:
     build:
       runs-on: ubuntu-latest

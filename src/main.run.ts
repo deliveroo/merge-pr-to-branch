@@ -5,13 +5,9 @@ import { GithubApiManager } from "./GithubApiManager";
 import { mergeDeployablePullRequests, getBaseBranch } from "./mergeDeployablePullRequests";
 import { GitCommandManager } from "./GitCommandManager";
 import { promises } from "fs";
-import { retry } from "./retry";
-import { acquireLock, removeLock } from "./acquireLock";
 const { mkdtemp } = promises;
 
 const targetBranchInputName = "target-branch";
-const lockBranchNameInputName = "lock-branch-name";
-const lockCheckIntervalInputName = "lock-check-interval-ms";
 const requestLabelNameInputName = "request-label-name";
 const deployedLabelNameInputName = "deployed-label-name";
 const triggerWorkflowsInputName = "trigger-workflows";
@@ -46,11 +42,10 @@ export async function run() {
     if (!user) {
       throw new Error("Missing GITHUB_ACTOR environment variable");
     }
+    // Mutual exclusion between concurrent runs is handled by the GitHub Actions
+    // `concurrency` group in the calling workflow (see README), not by this
+    // action — so there is no in-process lock to acquire or release here.
     const github = new GithubApiManager(token, owner, repo);
-    const lockBranchName = getInput(lockBranchNameInputName);
-    const lockCheckIntervalInMs = Number(getInput(lockCheckIntervalInputName));
-    const acquireThisLock = () => acquireLock(github, lockBranchName, baseBranch);
-    await retry(acquireThisLock, 5, "Could not acquire lock", lockCheckIntervalInMs);
     const workingDirectory = await mkdtemp("git-workspace");
     const git = new GitCommandManager(workingDirectory, user, token);
     const pushed = await mergeDeployablePullRequests(
@@ -71,7 +66,6 @@ export async function run() {
         await github.dispatchWorkflow(workflow, targetBranch);
       }
     }
-    await removeLock(github, lockBranchName);
   } catch (error) {
     setFailed(JSON.stringify(serializeError(error)));
   }
